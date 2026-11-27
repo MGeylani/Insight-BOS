@@ -5,6 +5,8 @@ namespace App\Providers;
 use App\Models\Client;
 use App\Models\Lead;
 use App\Models\Opportunity;
+use App\Models\Quote;
+use App\Models\Service;
 use App\Models\User;
 use App\Support\Permissions;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -35,6 +37,8 @@ class AppServiceProvider extends ServiceProvider
             'lead' => Lead::class,
             'client' => Client::class,
             'opportunity' => Opportunity::class,
+            'quote' => Quote::class,
+            'service' => Service::class,
         ]);
 
         Password::defaults(fn () => Password::min(10)->letters()->numbers());

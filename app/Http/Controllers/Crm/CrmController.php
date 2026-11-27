@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Crm;
 
 use App\Http\Controllers\Controller;
 use App\Models\Currency;
+use App\Models\Quote;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 
@@ -50,5 +51,17 @@ abstract class CrmController extends Controller
             'created_at' => $a->created_at?->toIso8601String(),
             'overdue' => ! $a->completed_at && $a->due_at && $a->due_at->isPast(),
         ];
+    }
+
+    /** Compact quote list for a client or opportunity page, filtered by the viewer's scope. */
+    protected function quoteList($relation, User $user): array
+    {
+        return $relation->visibleTo($user)->with('items')->get()->map(fn (Quote $q) => [
+            ...$q->only('id', 'number', 'title', 'currency'),
+            'status' => $q->displayStatus(),
+            'issue_date' => $q->issue_date?->toDateString(),
+            'valid_until' => $q->valid_until?->toDateString(),
+            'total' => $q->totals()['total'],
+        ])->all();
     }
 }

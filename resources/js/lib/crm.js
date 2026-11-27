@@ -11,6 +11,15 @@ export const oppStageTone = {
     lost: 'red',
 };
 
+export const quoteStatusTone = {
+    draft: 'slate',
+    sent: 'navy',
+    expired: 'amber',
+    accepted: 'green',
+    rejected: 'red',
+    cancelled: 'slate',
+};
+
 export const leadStageAccent = {
     new: 'border-t-sky',
     contacted: 'border-t-brand',

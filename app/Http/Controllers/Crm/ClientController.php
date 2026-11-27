@@ -78,6 +78,8 @@ class ClientController extends CrmController
             ]),
             'leads' => $client->leads->map(fn ($l) => [...$l->only('id', 'name', 'source'), 'converted_at' => $l->converted_at?->toIso8601String()]),
             'activities' => $client->activities->map(fn ($a) => $this->activityPayload($a)),
+            'quotes' => $this->quoteList($client->quotes(), $request->user()),
+            'quoteStatuses' => config('crm.quote_statuses'),
             'stats' => [
                 'won_total' => round($won->sum(fn ($o) => $o->amountInBase() ?? 0), 2),
                 'won_count' => $won->count(),

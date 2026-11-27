@@ -76,6 +76,8 @@ class OpportunityController extends CrmController
             ]),
             'activities' => $o->activities->map(fn ($a) => $this->activityPayload($a)),
             'contacts' => $o->client?->contacts()->get(['id', 'name']) ?? [],
+            'quotes' => $this->quoteList($o->quotes(), $request->user()),
+            'quoteStatuses' => config('crm.quote_statuses'),
             ...$this->options(),
         ]);
     }

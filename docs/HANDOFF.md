@@ -6,9 +6,9 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 ## الحالة الحالية (2026-11-28)
 
 - **المرحلة 1 منتهية ومنشورة** على https://test.insightpromedia.com (Plesk، PHP 8.3، Laravel Toolkit يسحب فرع `deploy`).
-- **المرحلة 2: الخطوتان 1 و2 منتهيتان** (CRM كامل: البيانات + الواجهات + 41 اختباراً ناجحاً). التالي: **الخطوة 3 (كتالوج الخدمات وعروض الأسعار + PDF)**.
+- **المرحلة 2: الخطوات 1–3 منتهية** (CRM + كتالوج الخدمات وعروض الأسعار مع PDF). التالي: **الخطوة 4 (العقود)**.
 - CI: كل دفعة إلى `main` أو إلى فرع `phase-*` ← GitHub Actions يشغّل الاختبارات. فقط `main` ينشئ فرع `deploy` (vendor + public/build). **لا تعدّل `deploy` يدوياً.**
-- أسلوب العمل المعتمد: اعمل على فرع `phase-N-...`، ادفع، انتظر CI أخضر، ثم ادمج fast-forward في `main` (يُنشر تلقائياً؛ Plesk يشغّل `migrate --force` بعد كل سحب، والـ Scheduler مفعّل).
+- أسلوب العمل المعتمد: اعمل على فرع `phase-N-...`، ادفع، انتظر CI أخضر. **الدفع المباشر إلى `main` ممنوع من جلسة Claude**: المستخدم يدمج عبر Pull Request (أعطه رابط `https://github.com/MGeylani/Insight-BOS/compare/main...<branch>`)، ثم يشغّل `migrate --force` يدوياً من Laravel Toolkit إن لزم.
 - بيئة Claude السحابية لا تصل إلى Packagist: لا يمكن `composer install` محلياً. افحص PHP بـ `php -l`، وابنِ الواجهة بـ `npm ci && npm run build`، واعتمد على CI للاختبارات.
 - `gh` غير مسجّل الدخول وإنشاء PR عبر أدوات GitHub مرفوض (403). لمتابعة CI استخدم API العامة بـ curl:
   `curl -s "https://api.github.com/repos/MGeylani/Insight-BOS/actions/runs?branch=<branch>&per_page=1"` ثم السجلات من `.../actions/runs/<id>/logs` (ملف zip).
@@ -41,7 +41,17 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 - التذكيرات: الأمر `crm:reminders` مجدول كل 5 دقائق ← إشعار database ← جرس التنبيهات في الترويسة (`/notifications`).
 - الواجهات: `resources/js/pages/crm/*` ومكونات `resources/js/components/crm/*` (CrmTabs، ActivityFeed قابل لإعادة الاستخدام لأي سجل، StageModal، نماذج الإدخال). `lib/crm.js` فيه `money()` و`usd()` والألوان.
 - الحذف = أرشفة (soft delete). سجل التدقيق لكل إنشاء/تعديل/نقل مرحلة/دمج/تحويل.
-- الخطوة 3 ستحتاج: جدول `services` (تحت `service_categories`)، `quotes` + `quote_items`، ربط العرض بـ `opportunity_id` و`client_id`، ونقل الفرصة إلى `sent` عند إرسال العرض و`won` عند قبوله.
+
+## ما بُني في الخدمات وعروض الأسعار (المرحلة 2، الخطوة 3)
+
+- الجداول (`2026_11_28_000200_create_quotes_tables.php`): `services` (تحت `service_categories`، سعر ووحدة وعملة افتراضية)، `quotes`، `quote_items`. morph map: `quote`، `service`.
+- الكتالوج `/crm/services`: العرض بـ `crm.view`، الإضافة/التعديل/الأرشفة بـ `settings.manage`. الوحدات المقترحة في `config/crm.php` (`service_units`)، والحالات في `quote_statuses`.
+- `App\Services\Sales\Quotes` هو المصدر الوحيد لتغيير البنود والحالة: `saveDraft` (ضريبة البند = نسبة تصنيفه الحالية)، `issue` (رقم `QT-…` + تثبيت `fx_rate` ونسب الضريبة + تحديث قيمة الفرصة ونقلها من discovery/proposal إلى `sent`)، `accept` (الفرصة ← `won`)، `reject` (سبب إلزامي، لا يغيّر الفرصة)، `cancel` (للمُرسل/المرفوض)، `duplicate` (نسخة مسودة بـ `source_quote_id`). الصادر لا يُعدّل ولا يُحذف؛ المسودة فقط تُحذف (soft).
+- `expired` حالة محسوبة (مُرسل وتجاوز `valid_until`)، لا تُخزَّن. المجاميع محسوبة في `QuoteItem`/`Quote::totals()` بتقريب لكل بند، ونفس المنطق في `quotes/Edit.vue`.
+- الإعدادات الافتراضية (مدة الصلاحية، الشروط) في صفحة بيانات الشركة ← `PUT /settings/quote-defaults` (مفاتيح `quotes.validity_days`، `quotes.default_terms`).
+- PDF: `App\Services\Pdf\PdfRenderer` (mPDF ^8.2، يدعم تشكيل العربية وRTL) قابل لإعادة الاستخدام للعقود والفواتير. الخط `resources/fonts/madani-400|700.ttf` (محوّل من woff2)، الشعار `resources/pdf/logo.png` (مولّد من `public/images/logo.svg` بـ `rsvg-convert -w 800`). القالب `resources/views/pdf/quote.php` (PHP عادي لا Blade). المسودة بعلامة مائية «مسودة» والملغى «ملغى». الرابط `/crm/quotes/{id}/pdf` (`?download=1` للتنزيل).
+- قبول العرض ← مشروع: العمود `quotes.project_id` جاهز بلا مفتاح أجنبي؛ يُربط في الخطوة 5 (أضف زر «تحويل إلى مشروع» في `quotes/Show.vue`).
+- ملاحظة بيئة: تشغيل كود مستنسخ من GitHub محلياً (مثل mPDF) محجوب في الجلسة، فاختبار PDF يتم في CI فقط.
 
 ## نطاق المرحلة 2 (العملاء والمشاريع والعقود + ربط التخزين)
 
@@ -70,7 +80,7 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 
 1. ~~الجداول والنماذج والاختبارات لـ CRM.~~ ✅
 2. ~~واجهات CRM (Kanban، العملاء، الفرص، الأنشطة، التحويل).~~ ✅
-3. الخدمات وعروض الأسعار + PDF.
+3. ~~الخدمات وعروض الأسعار + PDF.~~ ✅
 4. العقود.
 5. المشاريع ومساحة المشروع.
 6. ربط التخزين والمرفقات.

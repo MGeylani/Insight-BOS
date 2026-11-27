@@ -5,8 +5,9 @@ import PageHeader from '@/components/PageHeader.vue';
 import Btn from '@/components/Btn.vue';
 import Field from '@/components/Field.vue';
 
-const props = defineProps({ company: Object });
+const props = defineProps({ company: Object, quotes: Object });
 const form = useForm({ ...props.company });
+const qForm = useForm({ ...props.quotes });
 const fields = [
     { key: 'name', label: 'الاسم التجاري', required: true },
     { key: 'legal_name', label: 'الاسم القانوني' },
@@ -28,6 +29,17 @@ const fields = [
                 <textarea id="address" v-model="form.address" rows="2" class="field-input" />
             </Field>
             <div class="md:col-span-2"><Btn type="submit" :loading="form.processing">حفظ</Btn></div>
+        </form>
+
+        <h2 class="mb-3 mt-8 text-lg font-semibold text-navy">عروض الأسعار</h2>
+        <form class="card grid gap-5 p-6 md:grid-cols-4" @submit.prevent="qForm.put('/settings/quote-defaults', { preserveScroll: true })">
+            <Field label="مدة صلاحية العرض (يوم)" id="q-days" :error="qForm.errors.validity_days" required>
+                <input id="q-days" v-model="qForm.validity_days" type="number" min="1" max="365" dir="ltr" class="field-input text-start" />
+            </Field>
+            <Field label="الشروط الافتراضية" id="q-terms" :error="qForm.errors.default_terms" hint="تُنسخ إلى كل عرض جديد ويمكن تعديلها فيه." class="md:col-span-4">
+                <textarea id="q-terms" v-model="qForm.default_terms" rows="5" class="field-input" placeholder="مثال: دفعة مقدمة 50% عند الموافقة، والباقي عند التسليم." />
+            </Field>
+            <div class="md:col-span-4"><Btn type="submit" :loading="qForm.processing">حفظ</Btn></div>
         </form>
     </AppLayout>
 </template>
