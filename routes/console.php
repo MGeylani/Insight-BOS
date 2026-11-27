@@ -25,3 +25,11 @@ Artisan::command('crm:reminders', function () {
 })->purpose('Send due CRM activity reminders');
 
 \Illuminate\Support\Facades\Schedule::command('crm:reminders')->everyFiveMinutes()->withoutOverlapping();
+
+// Retries attachments whose upload to the storage provider failed (temporary copy kept until it succeeds).
+Artisan::command('storage:retry', function () {
+    [$ok, $bad] = \App\Services\Storage\Attachments::retryFailed();
+    $this->info("Uploaded $ok, still failing $bad.");
+})->purpose('Retry failed attachment uploads');
+
+\Illuminate\Support\Facades\Schedule::command('storage:retry')->everyTenMinutes()->withoutOverlapping();

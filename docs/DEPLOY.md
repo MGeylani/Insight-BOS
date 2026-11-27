@@ -69,3 +69,30 @@ php artisan view:cache
 - أدخل أسعار صرف اليوم من «العملات وأسعار الصرف».
 - راجع بيانات الشركة وتصنيفات الخدمات.
 - أنشئ حسابات الفريق من «المستخدمون».
+
+## ربط التخزين السحابي (المرحلة 2، الخطوة 6)
+
+اختر المزود من «الإعدادات ← التخزين السحابي» واحفظ، ثم اربط الحساب. مزودو OAuth يحتاجون تطبيقاً تنشئه مرة واحدة ومفاتيحه في `.env` على الخادم. رابط إعادة التوجيه يظهر في صفحة الإعدادات، وصيغته:
+`https://test.insightpromedia.com/settings/storage/callback/<google_drive|onedrive|dropbox>`
+
+**Google Drive** — [Google Cloud Console](https://console.cloud.google.com/):
+1. أنشئ مشروعاً، وفعّل **Google Drive API** (APIs & Services ← Library).
+2. OAuth consent screen: النوع Internal إن كان حساب Google Workspace، وأضف النطاق `.../auth/drive.file`.
+3. Credentials ← Create credentials ← OAuth client ID ← Web application، وأضف رابط إعادة التوجيه أعلاه.
+4. في `.env`: `GOOGLE_DRIVE_CLIENT_ID=` و`GOOGLE_DRIVE_CLIENT_SECRET=`.
+
+**OneDrive** — [Microsoft Entra](https://entra.microsoft.com/) ← App registrations ← New registration:
+1. الحسابات المدعومة: حسب حسابك (للحساب المؤسسي فقط اختر «Single tenant» وضع معرّف المستأجر في `ONEDRIVE_TENANT`).
+2. Redirect URI من نوع Web = الرابط أعلاه.
+3. Certificates & secrets ← New client secret. API permissions ← Microsoft Graph (Delegated): `Files.ReadWrite`، `User.Read`، `offline_access`.
+4. في `.env`: `ONEDRIVE_CLIENT_ID=` (Application ID) و`ONEDRIVE_CLIENT_SECRET=` (قيمة السر لا معرّفه) و`ONEDRIVE_TENANT=common`.
+
+**Dropbox** — [App Console](https://www.dropbox.com/developers/apps) ← Create app:
+1. Scoped access، والنوع App folder (الأسلم) أو Full Dropbox.
+2. Permissions: `account_info.read`، `files.metadata.read`، `files.metadata.write`، `files.content.read`، `files.content.write` ثم Submit.
+3. Settings ← Redirect URIs: أضف الرابط أعلاه.
+4. في `.env`: `DROPBOX_APP_KEY=` و`DROPBOX_APP_SECRET=`.
+
+**WD My Cloud** — لا يحتاج مفاتيح: فعّل الوصول عن بُعد/WebDAV على الجهاز، ثم أدخل العنوان واسم المستخدم وكلمة المرور في صفحة الإعدادات.
+
+بعد تعديل `.env` نفّذ `config:cache` من Laravel Toolkit. ارفع حدود PHP في Plesk (PHP Settings) لتناسب «الحد الأقصى لحجم الملف»: `upload_max_filesize` و`post_max_size` (مثلاً 512M)، و`max_execution_time` (مثلاً 600) لأن الرفع إلى الخدمة يتم أثناء الطلب. الملفات التي يفشل رفعها يُعاد رفعها كل 10 دقائق عبر Scheduler.

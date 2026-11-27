@@ -16,6 +16,7 @@ use App\Models\Quote;
 use App\Models\User;
 use App\Services\ActivityLogger;
 use App\Services\Projects\Projects;
+use App\Services\Storage\Attachments;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -172,6 +173,7 @@ class ProjectController extends Controller
                 'id' => $l->id, 'description' => $l->description,
                 'user' => $l->user?->name, 'created_at' => $l->created_at?->toIso8601String(),
             ]),
+            'files' => Attachments::payload($project, $user),
             'can' => [
                 'edit' => $project->isVisibleTo($user, 'projects.edit'),
                 'delete' => $project->isVisibleTo($user, 'projects.delete'),

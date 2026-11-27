@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\RoleTemplateController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Crm\ActivityController;
@@ -42,6 +43,12 @@ Route::middleware('auth')->group(function () {
     Route::get('profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('profile/password', [ProfileController::class, 'password'])->middleware('throttle:6,1')->name('profile.password');
+
+    // Attachments on any record; access follows the record's own permissions (checked in the controller).
+    Route::post('attachments', [AttachmentController::class, 'store'])->middleware('throttle:60,1')->name('attachments.store');
+    Route::get('attachments/{attachment}/open', [AttachmentController::class, 'open'])->name('attachments.open');
+    Route::post('attachments/{attachment}/retry', [AttachmentController::class, 'retry'])->name('attachments.retry');
+    Route::delete('attachments/{attachment}', [AttachmentController::class, 'destroy'])->name('attachments.destroy');
 
     Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('notifications/read', [NotificationController::class, 'read'])->name('notifications.read');
@@ -197,6 +204,12 @@ Route::middleware('auth')->group(function () {
         Route::middleware('can:settings.storage')->group(function () {
             Route::get('storage', [StorageController::class, 'show'])->name('storage');
             Route::put('storage', [StorageController::class, 'update'])->name('storage.update');
+            Route::get('storage/connect/{provider}', [StorageController::class, 'connect'])->name('storage.connect');
+            Route::get('storage/callback/{provider}', [StorageController::class, 'callback'])->name('storage.callback');
+            Route::post('storage/webdav', [StorageController::class, 'webdav'])->name('storage.webdav');
+            Route::post('storage/test', [StorageController::class, 'test'])->name('storage.test');
+            Route::post('storage/disconnect', [StorageController::class, 'disconnect'])->name('storage.disconnect');
+            Route::post('storage/retry', [StorageController::class, 'retry'])->name('storage.retry');
         });
     });
 });
