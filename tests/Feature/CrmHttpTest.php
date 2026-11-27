@@ -131,7 +131,7 @@ class CrmHttpTest extends TestCase
             ->component('crm/clients/Show')
             ->has('contacts', 2)
             ->has('opportunities', 2)
-            ->where('stats.won_total', 800.0)
+            ->where('stats.won_total', 800)
             ->where('stats.open_count', 1));
 
         $foreign = Contact::factory()->create();
@@ -163,8 +163,8 @@ class CrmHttpTest extends TestCase
         Opportunity::factory()->create(['amount' => 2000, 'probability' => 25, 'expected_close_date' => '2027-01-20']);
 
         $this->actingAs($u)->get('/crm/opportunities')->assertInertia(fn (Assert $p) => $p
-            ->where('forecast.total', 3000.0)
-            ->where('forecast.weighted', 1000.0)
+            ->where('forecast.total', 3000)
+            ->where('forecast.weighted', 1000)
             ->where('forecast.months.0.month', '2027-01'));
     }
 
