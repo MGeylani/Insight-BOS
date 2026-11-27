@@ -90,4 +90,9 @@ class Opportunity extends Model
     {
         return $this->hasMany(Quote::class)->latest('id');
     }
+
+    public function contracts(): HasMany
+    {
+        return $this->hasMany(Contract::class)->latest('id');
+    }
 }

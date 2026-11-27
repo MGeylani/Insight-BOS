@@ -78,6 +78,8 @@ class OpportunityController extends CrmController
             'contacts' => $o->client?->contacts()->get(['id', 'name']) ?? [],
             'quotes' => $this->quoteList($o->quotes(), $request->user()),
             'quoteStatuses' => config('crm.quote_statuses'),
+            'contracts' => $this->contractList($o->contracts(), $request->user()),
+            'contractStatuses' => config('crm.contract_statuses'),
             ...$this->options(),
         ]);
     }

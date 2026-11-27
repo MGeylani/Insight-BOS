@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Settings;
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use App\Services\ActivityLogger;
+use App\Services\Sales\Contracts;
 use App\Services\Sales\Quotes;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,6 +26,7 @@ class CompanyController extends Controller
         return Inertia::render('settings/Company', [
             'company' => $values,
             'quotes' => ['validity_days' => Quotes::validityDays(), 'default_terms' => Quotes::defaultTerms() ?? ''],
+            'contracts' => ['terms_project' => Contracts::defaultTerms('project') ?? '', 'terms_retainer' => Contracts::defaultTerms('retainer') ?? ''],
         ]);
     }
 
@@ -59,5 +61,19 @@ class CompanyController extends Controller
         ActivityLogger::log('settings.quotes', null, 'تعديل إعدادات عروض الأسعار', $data);
 
         return back()->with('success', 'تم حفظ إعدادات عروض الأسعار.');
+    }
+
+    /** Default terms text for new contracts, one per contract type. */
+    public function updateContracts(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'terms_project' => ['nullable', 'string', 'max:20000'],
+            'terms_retainer' => ['nullable', 'string', 'max:20000'],
+        ]);
+        Setting::put('contracts.terms_project', $data['terms_project'] ?? '');
+        Setting::put('contracts.terms_retainer', $data['terms_retainer'] ?? '');
+        ActivityLogger::log('settings.contracts', null, 'تعديل الشروط الافتراضية للعقود');
+
+        return back()->with('success', 'تم حفظ إعدادات العقود.');
     }
 }

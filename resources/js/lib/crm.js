@@ -20,6 +20,18 @@ export const quoteStatusTone = {
     cancelled: 'slate',
 };
 
+export const contractStatusTone = {
+    draft: 'slate',
+    sent: 'amber',
+    active: 'green',
+    expired: 'amber',
+    completed: 'navy',
+    terminated: 'red',
+    cancelled: 'slate',
+};
+
+export const scheduleStatusTone = { pending: 'slate', overdue: 'amber', done: 'green', cancelled: 'slate' };
+
 export const leadStageAccent = {
     new: 'border-t-sky',
     contacted: 'border-t-brand',

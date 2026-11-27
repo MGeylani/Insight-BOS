@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Crm;
 
 use App\Http\Controllers\Controller;
+use App\Models\Contract;
 use App\Models\Currency;
 use App\Models\Quote;
 use App\Models\User;
@@ -62,6 +63,19 @@ abstract class CrmController extends Controller
             'issue_date' => $q->issue_date?->toDateString(),
             'valid_until' => $q->valid_until?->toDateString(),
             'total' => $q->totals()['total'],
+        ])->all();
+    }
+
+    /** Compact contract list for a client, opportunity or quote page, filtered by the viewer's scope. */
+    protected function contractList($relation, User $user): array
+    {
+        return $relation->visibleTo($user)->with('schedules')->get()->map(fn (Contract $c) => [
+            ...$c->only('id', 'number', 'title', 'type', 'currency'),
+            'status' => $c->displayStatus(),
+            'start_date' => $c->start_date?->toDateString(),
+            'end_date' => $c->end_date?->toDateString(),
+            'monthly_fee' => $c->monthly_fee === null ? null : (float) $c->monthly_fee,
+            'total' => $c->totalValue(),
         ])->all();
     }
 }

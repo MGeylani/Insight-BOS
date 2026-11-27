@@ -1,6 +1,6 @@
 <script setup>
 import { Link, usePage } from '@inertiajs/vue3';
-import { Funnel, Handshake, Building2, CalendarCheck, FileText, Package } from '@lucide/vue';
+import { Funnel, Handshake, Building2, CalendarCheck, FileText, FileSignature, Package } from '@lucide/vue';
 
 const page = usePage();
 const tabs = [
@@ -8,6 +8,7 @@ const tabs = [
     { label: 'الفرص', href: '/crm/opportunities', icon: Handshake },
     { label: 'العملاء', href: '/crm/clients', icon: Building2 },
     { label: 'عروض الأسعار', href: '/crm/quotes', icon: FileText },
+    { label: 'العقود', href: '/crm/contracts', icon: FileSignature },
     { label: 'المتابعات', href: '/crm/activities', icon: CalendarCheck },
     { label: 'الخدمات', href: '/crm/services', icon: Package },
 ];

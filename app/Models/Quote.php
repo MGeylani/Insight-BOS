@@ -111,4 +111,9 @@ class Quote extends Model
     {
         return $this->belongsTo(Quote::class, 'source_quote_id')->withTrashed();
     }
+
+    public function contracts(): HasMany
+    {
+        return $this->hasMany(Contract::class)->latest('id');
+    }
 }
