@@ -6,9 +6,14 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 ## الحالة الحالية (2026-11-28)
 
 - **المرحلة 1 منتهية ومنشورة** على https://test.insightpromedia.com (Plesk، PHP 8.3، Laravel Toolkit يسحب فرع `deploy`).
-- CI: كل دفعة إلى `main` ← GitHub Actions يشغّل الاختبارات ← ينشئ فرع `deploy` (vendor + public/build). **لا تعدّل `deploy` يدوياً.**
-- بيئة Claude السحابية لا تصل إلى Packagist: لا يمكن `composer install` محلياً. افحص PHP بـ `php -l`، وابنِ الواجهة بـ `npm run build`، واعتمد على CI للاختبارات (`gh run watch`).
+- **المرحلة 2: الخطوتان 1 و2 منتهيتان** (CRM كامل: البيانات + الواجهات + 41 اختباراً ناجحاً). التالي: **الخطوة 3 (كتالوج الخدمات وعروض الأسعار + PDF)**.
+- CI: كل دفعة إلى `main` أو إلى فرع `phase-*` ← GitHub Actions يشغّل الاختبارات. فقط `main` ينشئ فرع `deploy` (vendor + public/build). **لا تعدّل `deploy` يدوياً.**
+- أسلوب العمل المعتمد: اعمل على فرع `phase-N-...`، ادفع، انتظر CI أخضر، ثم ادمج fast-forward في `main` (يُنشر تلقائياً؛ Plesk يشغّل `migrate --force` بعد كل سحب، والـ Scheduler مفعّل).
+- بيئة Claude السحابية لا تصل إلى Packagist: لا يمكن `composer install` محلياً. افحص PHP بـ `php -l`، وابنِ الواجهة بـ `npm ci && npm run build`، واعتمد على CI للاختبارات.
+- `gh` غير مسجّل الدخول وإنشاء PR عبر أدوات GitHub مرفوض (403). لمتابعة CI استخدم API العامة بـ curl:
+  `curl -s "https://api.github.com/repos/MGeylani/Insight-BOS/actions/runs?branch=<branch>&per_page=1"` ثم السجلات من `.../actions/runs/<id>/logs` (ملف zip).
 - ملفات Laravel الافتراضية غير المعدّلة غير متتبعة في المستودع؛ `scripts/restore-skeleton.sh` يعيدها (يُشغّل في CI).
+- ملاحظة اختبارات: `assertInertia()->where()` يقارن بصرامة بعد JSON، فالقيمة `800.0` تصل `800` (int). قارن بأعداد صحيحة.
 
 ## التقنية والأعراف
 
@@ -24,6 +29,19 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 - التخزين: مزود واحد نشط في `storage_connections` (google_drive | onedrive | dropbox | wd_mycloud)، الواجهة `App\Services\Storage\StorageProvider`. الملفات لا تُخزَّن على الخادم.
 - المبالغ `DECIMAL(14,2)`، علاقات بالمعرّف لا بالاسم، Soft deletes، القيم المحسوبة لا تُخزَّن.
 - كل ميزة جديدة: اختبارات Feature في `tests/Feature`، وseeders idempotent.
+
+## ما بُني في CRM (المرحلة 2، الخطوتان 1–2)
+
+- المفردات في `config/crm.php`: مصادر، مراحل المحتمل، تقييم (hot/warm/cold)، مراحل الفرص مع احتمالية افتراضية، أسباب الخسارة، أنواع الأنشطة، أنواع العملاء.
+- الجداول (`2026_11_28_000100_create_crm_tables.php`): `clients`، `contacts`، `leads`، `opportunities`، `opportunity_stage_changes`، `crm_activities` (morph: lead|client|opportunity)، `notifications`.
+- morph map في `AppServiceProvider`: `lead`، `client`، `opportunity` (أضف `project` وغيره هنا لاحقاً).
+- `App\Models\Concerns\VisibleByScope`: `Model::visibleTo($user, 'crm.view')` و`$model->isVisibleTo($user, 'crm.edit')`؛ own/assigned = `owner_id` أو `created_by` (الأنشطة: `user_id` أو `created_by`). استخدمه لموديولات المشاريع أيضاً مع `scopeOwnerColumns()`.
+- `NormalizesPhone`: يحفظ آخر 9 أرقام في `phone_normalized` لكشف التكرار.
+- الخدمات في `app/Services/Crm`: `OpportunityStages::move()` (المصدر الوحيد لتغيير المرحلة؛ يسجل التاريخ ويُلزم سبب الخسارة)، `DuplicateFinder::find()`، `LeadMerger::merge()`، `LeadConverter::convert()`.
+- التذكيرات: الأمر `crm:reminders` مجدول كل 5 دقائق ← إشعار database ← جرس التنبيهات في الترويسة (`/notifications`).
+- الواجهات: `resources/js/pages/crm/*` ومكونات `resources/js/components/crm/*` (CrmTabs، ActivityFeed قابل لإعادة الاستخدام لأي سجل، StageModal، نماذج الإدخال). `lib/crm.js` فيه `money()` و`usd()` والألوان.
+- الحذف = أرشفة (soft delete). سجل التدقيق لكل إنشاء/تعديل/نقل مرحلة/دمج/تحويل.
+- الخطوة 3 ستحتاج: جدول `services` (تحت `service_categories`)، `quotes` + `quote_items`، ربط العرض بـ `opportunity_id` و`client_id`، ونقل الفرصة إلى `sent` عند إرسال العرض و`won` عند قبوله.
 
 ## نطاق المرحلة 2 (العملاء والمشاريع والعقود + ربط التخزين)
 
@@ -50,8 +68,8 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 
 ## اقتراح ترتيب العمل في المرحلة 2
 
-1. الجداول والنماذج والاختبارات لـ CRM.
-2. واجهات CRM (Kanban، العملاء، الفرص، الأنشطة، التحويل).
+1. ~~الجداول والنماذج والاختبارات لـ CRM.~~ ✅
+2. ~~واجهات CRM (Kanban، العملاء، الفرص، الأنشطة، التحويل).~~ ✅
 3. الخدمات وعروض الأسعار + PDF.
 4. العقود.
 5. المشاريع ومساحة المشروع.
