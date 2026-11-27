@@ -1,0 +1,55 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+@source '../**/*.vue';
+
+@font-face { font-family: 'Madani Arabic'; src: url('/fonts/madani-400.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Madani Arabic'; src: url('/fonts/madani-500.woff2') format('woff2'); font-weight: 500; font-display: swap; }
+@font-face { font-family: 'Madani Arabic'; src: url('/fonts/madani-600.woff2') format('woff2'); font-weight: 600; font-display: swap; }
+@font-face { font-family: 'Madani Arabic'; src: url('/fonts/madani-700.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+
+/* Insight Media brand tokens (Brand Guidelines, Colors pp. 15-16) */
+@theme {
+    --font-sans: 'Madani Arabic', ui-sans-serif, system-ui, sans-serif;
+
+    --color-navy: #00027c;      /* Dark Blue - primary */
+    --color-brand: #0082f6;     /* Blue */
+    --color-sky: #00bef2;       /* Sky Blue */
+    --color-plum: #481c4e;      /* Dark Purple */
+    --color-orchid: #864690;    /* Medium Purple */
+    --color-sand: #f1d87f;      /* Pastel Yellow */
+
+    --color-navy-50: #eef0ff;
+    --color-navy-100: #dfe2ff;
+    --color-navy-700: #00025f;
+    --color-navy-900: #000140;
+}
+
+@layer base {
+    html { -webkit-font-smoothing: antialiased; }
+    body { @apply bg-slate-50 text-slate-800; }
+    [dir='rtl'] .num, .num { font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: isolate; }
+}
+
+@layer components {
+    .brand-gradient {
+        background:
+            radial-gradient(120% 90% at 85% 10%, rgb(0 190 242 / 0.55), transparent 55%),
+            radial-gradient(90% 80% at 10% 100%, rgb(0 130 246 / 0.6), transparent 60%),
+            linear-gradient(160deg, #00027c 0%, #0010a8 55%, #0082f6 100%);
+    }
+    .card { @apply rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_2px_rgb(0_2_124/0.04)]; }
+    .field-label { @apply mb-1.5 block text-sm font-medium text-slate-700; }
+    .field-input {
+        @apply block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400
+            focus:border-brand focus:ring-4 focus:ring-brand/15 focus:outline-none disabled:bg-slate-100;
+    }
+    .field-error { @apply mt-1 text-xs text-red-600; }
+    .tbl { @apply w-full text-sm; }
+    .tbl th { @apply bg-slate-50 px-4 py-3 text-start text-xs font-semibold text-slate-500; }
+    .tbl td { @apply border-t border-slate-100 px-4 py-3 align-middle; }
+    .tbl tbody tr:hover td { @apply bg-navy-50/40; }
+}

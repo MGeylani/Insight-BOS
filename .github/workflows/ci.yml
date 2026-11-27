@@ -1,0 +1,98 @@
+name: CI & Deploy build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore Laravel skeleton files
+        run: bash scripts/restore-skeleton.sh
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, intl, pdo_sqlite, pdo_mysql, zip, gd
+          coverage: none
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install PHP dependencies
+        run: |
+          if [ -f composer.lock ]; then composer install --no-interaction --prefer-dist; else composer update --no-interaction --prefer-dist; fi
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Install & build frontend
+        run: |
+          npm ci || npm install
+          npm run build
+
+      - name: Run tests
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ':memory:'
+        run: php artisan test
+
+      - name: Upload composer.lock
+        uses: actions/upload-artifact@v4
+        with:
+          name: composer-lock
+          path: composer.lock
+
+  # Builds a ready-to-run copy (vendor + compiled assets) on the `deploy` branch.
+  # Plesk pulls this branch, so the server needs neither Composer nor Node.
+  deploy-build:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore Laravel skeleton files
+        run: bash scripts/restore-skeleton.sh
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, intl, pdo_mysql, zip, gd
+          coverage: none
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: composer-lock
+
+      - name: Production dependencies & assets
+        run: |
+          composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+          npm ci || npm install
+          npm run build
+          rm -rf node_modules
+
+      - name: Publish to deploy branch
+        run: |
+          git config user.name "bos-ci"
+          git config user.email "ci@insightpromedia.com"
+          # vendor/ and public/build/ are ignored on main; force-add them here only.
+          git checkout -B deploy
+          git add -A
+          git add -f vendor public/build composer.lock
+          git commit -m "Deploy build ${GITHUB_SHA::7}" --quiet
+          git push -f origin deploy
