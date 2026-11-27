@@ -60,6 +60,18 @@ return [
         'follow_up' => 'متابعة',
     ],
 
+    'quote_statuses' => [
+        'draft' => 'مسودة',
+        'sent' => 'مُرسَل',
+        'expired' => 'منتهي الصلاحية', // derived: sent and past its validity date
+        'accepted' => 'مقبول',
+        'rejected' => 'مرفوض',
+        'cancelled' => 'ملغى',
+    ],
+
+    // Suggestions for the unit field of services and quote lines (free text is allowed).
+    'service_units' => ['مشروع', 'شهر', 'منشور', 'فيديو', 'تصميم', 'ساعة', 'يوم', 'صفحة', 'قطعة', 'حملة'],
+
     'client_types' => [
         'company' => 'شركة',
         'organization' => 'منظمة / جمعية',

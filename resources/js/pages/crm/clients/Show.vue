@@ -14,12 +14,13 @@ import ClientFormModal from '@/components/crm/ClientFormModal.vue';
 import OpportunityFormModal from '@/components/crm/OpportunityFormModal.vue';
 import ActivityFeed from '@/components/crm/ActivityFeed.vue';
 import DuplicateList from '@/components/crm/DuplicateList.vue';
+import QuoteList from '@/components/crm/QuoteList.vue';
 import { useAuth } from '@/lib/auth';
 import { formatDate } from '@/lib/format';
 import { oppStageTone, money, usd } from '@/lib/crm';
 
 const props = defineProps({
-    client: Object, contacts: Array, opportunities: Array, leads: Array, activities: Array, stats: Object, duplicates: Array,
+    client: Object, contacts: Array, opportunities: Array, leads: Array, activities: Array, stats: Object, duplicates: Array, quotes: Array, quoteStatuses: Object,
     sources: Object, leadStages: Object, ratings: Object, oppStages: Array, lostReasons: Object,
     activityTypes: Object, clientTypes: Object, users: Array, currencies: Array,
 });
@@ -107,6 +108,7 @@ const tabs = computed(() => [
                     </ul>
                     <p v-else class="px-5 py-6 text-center text-sm text-slate-400">لا توجد فرص.</p>
                 </div>
+                <QuoteList :quotes="quotes" :statuses="quoteStatuses" :create-href="`/crm/quotes/create?client_id=${client.id}`" />
                 <ActivityFeed :activities="activities.slice(0, 5)" subject-type="client" :subject-id="client.id" :options="options" />
             </div>
         </div>

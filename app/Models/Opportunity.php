@@ -85,4 +85,9 @@ class Opportunity extends Model
     {
         return $this->morphMany(CrmActivity::class, 'subject');
     }
+
+    public function quotes(): HasMany
+    {
+        return $this->hasMany(Quote::class)->latest('id');
+    }
 }

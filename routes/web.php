@@ -10,6 +10,8 @@ use App\Http\Controllers\Crm\ClientController;
 use App\Http\Controllers\Crm\ContactController;
 use App\Http\Controllers\Crm\LeadController;
 use App\Http\Controllers\Crm\OpportunityController;
+use App\Http\Controllers\Crm\QuoteController;
+use App\Http\Controllers\Crm\ServiceController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
@@ -55,11 +57,18 @@ Route::middleware('auth')->group(function () {
             Route::post('activities', [ActivityController::class, 'store'])->name('activities.store');
             Route::put('activities/{activity}', [ActivityController::class, 'update'])->name('activities.update');
             Route::post('activities/{activity}/complete', [ActivityController::class, 'complete'])->name('activities.complete');
+            Route::get('services', [ServiceController::class, 'index'])->name('services.index');
+            Route::get('quotes', [QuoteController::class, 'index'])->name('quotes.index');
+            Route::get('quotes/{quote}', [QuoteController::class, 'show'])->whereNumber('quote')->name('quotes.show');
+            Route::get('quotes/{quote}/pdf', [QuoteController::class, 'pdf'])->name('quotes.pdf');
         });
         Route::middleware('can:crm.create')->group(function () {
             Route::post('leads', [LeadController::class, 'store'])->name('leads.store');
             Route::post('clients', [ClientController::class, 'store'])->name('clients.store');
             Route::post('opportunities', [OpportunityController::class, 'store'])->name('opportunities.store');
+            Route::get('quotes/create', [QuoteController::class, 'create'])->name('quotes.create');
+            Route::post('quotes', [QuoteController::class, 'store'])->name('quotes.store');
+            Route::post('quotes/{quote}/duplicate', [QuoteController::class, 'duplicate'])->name('quotes.duplicate');
         });
         Route::middleware('can:crm.edit')->group(function () {
             Route::put('leads/{lead}', [LeadController::class, 'update'])->name('leads.update');
@@ -72,11 +81,23 @@ Route::middleware('auth')->group(function () {
             Route::put('opportunities/{opportunity}', [OpportunityController::class, 'update'])->name('opportunities.update');
             Route::post('opportunities/{opportunity}/stage', [OpportunityController::class, 'stage'])->name('opportunities.stage');
             Route::delete('activities/{activity}', [ActivityController::class, 'destroy'])->name('activities.destroy');
+            Route::get('quotes/{quote}/edit', [QuoteController::class, 'edit'])->name('quotes.edit');
+            Route::put('quotes/{quote}', [QuoteController::class, 'update'])->name('quotes.update');
+            Route::post('quotes/{quote}/issue', [QuoteController::class, 'issue'])->name('quotes.issue');
+            Route::post('quotes/{quote}/accept', [QuoteController::class, 'accept'])->name('quotes.accept');
+            Route::post('quotes/{quote}/reject', [QuoteController::class, 'reject'])->name('quotes.reject');
+            Route::post('quotes/{quote}/cancel', [QuoteController::class, 'cancel'])->name('quotes.cancel');
         });
         Route::middleware('can:crm.delete')->group(function () {
             Route::delete('leads/{lead}', [LeadController::class, 'destroy'])->name('leads.destroy');
             Route::delete('clients/{client}', [ClientController::class, 'destroy'])->name('clients.destroy');
             Route::delete('opportunities/{opportunity}', [OpportunityController::class, 'destroy'])->name('opportunities.destroy');
+            Route::delete('quotes/{quote}', [QuoteController::class, 'destroy'])->name('quotes.destroy');
+        });
+        Route::middleware('can:settings.manage')->group(function () {
+            Route::post('services', [ServiceController::class, 'store'])->name('services.store');
+            Route::put('services/{service}', [ServiceController::class, 'update'])->name('services.update');
+            Route::delete('services/{service}', [ServiceController::class, 'destroy'])->name('services.destroy');
         });
         Route::post('leads/{lead}/convert', [LeadController::class, 'convert'])->middleware('can:crm.convert')->name('leads.convert');
     });
@@ -102,6 +123,7 @@ Route::middleware('auth')->group(function () {
         Route::middleware('can:settings.manage')->group(function () {
             Route::get('company', [CompanyController::class, 'edit'])->name('company');
             Route::put('company', [CompanyController::class, 'update'])->name('company.update');
+            Route::put('quote-defaults', [CompanyController::class, 'updateQuotes'])->name('quote-defaults.update');
             Route::get('service-categories', [ServiceCategoryController::class, 'index'])->name('service-categories');
             Route::post('service-categories', [ServiceCategoryController::class, 'store'])->name('service-categories.store');
             Route::put('service-categories/{serviceCategory}', [ServiceCategoryController::class, 'update'])->name('service-categories.update');

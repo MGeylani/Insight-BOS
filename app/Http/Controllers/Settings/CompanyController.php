@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Settings;
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use App\Services\ActivityLogger;
+use App\Services\Sales\Quotes;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -21,7 +22,10 @@ class CompanyController extends Controller
             $values[$f] = Setting::get("company.$f", $f === 'name' ? 'Insight Media' : '');
         }
 
-        return Inertia::render('settings/Company', ['company' => $values]);
+        return Inertia::render('settings/Company', [
+            'company' => $values,
+            'quotes' => ['validity_days' => Quotes::validityDays(), 'default_terms' => Quotes::defaultTerms() ?? ''],
+        ]);
     }
 
     public function update(Request $request): RedirectResponse
@@ -41,5 +45,19 @@ class CompanyController extends Controller
         ActivityLogger::log('settings.company', null, 'تعديل بيانات الشركة', $data);
 
         return back()->with('success', 'تم حفظ بيانات الشركة.');
+    }
+
+    /** Defaults for new quotes: validity period and terms text. */
+    public function updateQuotes(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'validity_days' => ['required', 'integer', 'between:1,365'],
+            'default_terms' => ['nullable', 'string', 'max:10000'],
+        ]);
+        Setting::put('quotes.validity_days', $data['validity_days']);
+        Setting::put('quotes.default_terms', $data['default_terms'] ?? '');
+        ActivityLogger::log('settings.quotes', null, 'تعديل إعدادات عروض الأسعار', $data);
+
+        return back()->with('success', 'تم حفظ إعدادات عروض الأسعار.');
     }
 }
