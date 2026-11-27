@@ -11,12 +11,13 @@ import OpportunityFormModal from '@/components/crm/OpportunityFormModal.vue';
 import StageModal from '@/components/crm/StageModal.vue';
 import ActivityFeed from '@/components/crm/ActivityFeed.vue';
 import QuoteList from '@/components/crm/QuoteList.vue';
+import ContractList from '@/components/crm/ContractList.vue';
 import { useAuth } from '@/lib/auth';
 import { formatDate, formatDateTime } from '@/lib/format';
 import { oppStageTone, money, usd } from '@/lib/crm';
 
 const props = defineProps({
-    opportunity: Object, history: Array, activities: Array, contacts: Array, quotes: Array, quoteStatuses: Object,
+    opportunity: Object, history: Array, activities: Array, contacts: Array, quotes: Array, quoteStatuses: Object, contracts: Array, contractStatuses: Object,
     sources: Object, leadStages: Object, ratings: Object, oppStages: Array, lostReasons: Object,
     activityTypes: Object, clientTypes: Object, users: Array, currencies: Array,
 });
@@ -92,6 +93,7 @@ const archive = () => confirm('أرشفة هذه الفرصة؟') && router.dele
             </div>
             <div class="space-y-6 lg:col-span-2">
                 <QuoteList :quotes="quotes" :statuses="quoteStatuses" :create-href="closed ? null : `/crm/quotes/create?opportunity_id=${o.id}`" />
+                <ContractList :contracts="contracts" :statuses="contractStatuses" :create-href="o.stage === 'lost' ? null : `/crm/contracts/create?opportunity_id=${o.id}`" />
                 <ActivityFeed :activities="activities" subject-type="opportunity" :subject-id="o.id" :options="options" />
             </div>
         </div>

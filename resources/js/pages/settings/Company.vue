@@ -5,9 +5,10 @@ import PageHeader from '@/components/PageHeader.vue';
 import Btn from '@/components/Btn.vue';
 import Field from '@/components/Field.vue';
 
-const props = defineProps({ company: Object, quotes: Object });
+const props = defineProps({ company: Object, quotes: Object, contracts: Object });
 const form = useForm({ ...props.company });
 const qForm = useForm({ ...props.quotes });
+const cForm = useForm({ ...props.contracts });
 const fields = [
     { key: 'name', label: 'الاسم التجاري', required: true },
     { key: 'legal_name', label: 'الاسم القانوني' },
@@ -40,6 +41,17 @@ const fields = [
                 <textarea id="q-terms" v-model="qForm.default_terms" rows="5" class="field-input" placeholder="مثال: دفعة مقدمة 50% عند الموافقة، والباقي عند التسليم." />
             </Field>
             <div class="md:col-span-4"><Btn type="submit" :loading="qForm.processing">حفظ</Btn></div>
+        </form>
+
+        <h2 class="mb-3 mt-8 text-lg font-semibold text-navy">العقود</h2>
+        <form class="card grid gap-5 p-6 md:grid-cols-2" @submit.prevent="cForm.put('/settings/contract-defaults', { preserveScroll: true })">
+            <Field label="الشروط الافتراضية لعقود المشاريع" id="c-project" :error="cForm.errors.terms_project" hint="تُنسخ إلى كل عقد جديد من هذا النوع ويمكن تعديلها فيه.">
+                <textarea id="c-project" v-model="cForm.terms_project" rows="8" class="field-input" placeholder="مثال: يلتزم الطرف الثاني بتزويد الطرف الأول بالمواد اللازمة خلال 5 أيام عمل…" />
+            </Field>
+            <Field label="الشروط الافتراضية للعقود الشهرية" id="c-retainer" :error="cForm.errors.terms_retainer">
+                <textarea id="c-retainer" v-model="cForm.terms_retainer" rows="8" class="field-input" placeholder="مثال: تشمل الرسوم عدد المنشورات المتفق عليه شهرياً، وما زاد يُحتسب بسعر الكتالوج…" />
+            </Field>
+            <div class="md:col-span-2"><Btn type="submit" :loading="cForm.processing">حفظ</Btn></div>
         </form>
     </AppLayout>
 </template>

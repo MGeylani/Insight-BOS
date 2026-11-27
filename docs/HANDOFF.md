@@ -6,7 +6,7 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 ## الحالة الحالية (2026-11-28)
 
 - **المرحلة 1 منتهية ومنشورة** على https://test.insightpromedia.com (Plesk، PHP 8.3، Laravel Toolkit يسحب فرع `deploy`).
-- **المرحلة 2: الخطوات 1–3 منتهية** (CRM + كتالوج الخدمات وعروض الأسعار مع PDF). التالي: **الخطوة 4 (العقود)**.
+- **المرحلة 2: الخطوات 1–4 منتهية** (CRM + كتالوج الخدمات وعروض الأسعار + العقود، مع PDF). التالي: **الخطوة 5 (المشاريع ومساحة المشروع)**.
 - CI: كل دفعة إلى `main` أو إلى فرع `phase-*` ← GitHub Actions يشغّل الاختبارات. فقط `main` ينشئ فرع `deploy` (vendor + public/build). **لا تعدّل `deploy` يدوياً.**
 - أسلوب العمل المعتمد: اعمل على فرع `phase-N-...`، ادفع، انتظر CI أخضر. **الدفع المباشر إلى `main` ممنوع من جلسة Claude**: المستخدم يدمج عبر Pull Request (أعطه رابط `https://github.com/MGeylani/Insight-BOS/compare/main...<branch>`)، ثم يشغّل `migrate --force` يدوياً من Laravel Toolkit إن لزم.
 - بيئة Claude السحابية لا تصل إلى Packagist: لا يمكن `composer install` محلياً. افحص PHP بـ `php -l`، وابنِ الواجهة بـ `npm ci && npm run build`، واعتمد على CI للاختبارات.
@@ -53,6 +53,19 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 - قبول العرض ← مشروع: العمود `quotes.project_id` جاهز بلا مفتاح أجنبي؛ يُربط في الخطوة 5 (أضف زر «تحويل إلى مشروع» في `quotes/Show.vue`).
 - ملاحظة بيئة: تشغيل كود مستنسخ من GitHub محلياً (مثل mPDF) محجوب في الجلسة، فاختبار PDF يتم في CI فقط.
 
+## ما بُني في العقود (المرحلة 2، الخطوة 4)
+
+- الجداول (`2026_11_28_000300_create_contracts_tables.php`): `contracts` و`contract_schedules`. morph map: `contract`. المفردات في `config/crm.php` (`contract_types`، `contract_statuses`، `contract_schedule_statuses`، `billing_timings`). الصلاحيات: `crm.*` مثل العروض.
+- نوعان: **مشروع** (`value` + جدول يدوي من دفعات `payment` ومراحل `milestone`؛ عند الإصدار يجب أن يساوي مجموع الدفعات القيمة) و**شهري retainer** (`monthly_fee` × `term_months`، دفعاته تُولَّد تلقائياً شهراً بشهر بـ `period_start/end`، تستحق أول الفترة `advance` أو آخرها `arrears`؛ `end_date` محسوب؛ الأشهر بلا تجاوز: 31 يناير + شهر = آخر فبراير). المراحل اليدوية مسموحة للنوعين.
+- `App\Services\Sales\Contracts` المصدر الوحيد: `saveDraft`، `issue` (رقم `CTR-…` + تثبيت `fx_rate`)، `sign` (تاريخ + اسم الموقّع ← `active`، والفرصة ← `won`)، `complete`، `terminate` (تاريخ وسبب إلزامي؛ تُلغى البنود المعلّقة التي تستحق بعد تاريخ الفسخ)، `cancel` (للمُرسل غير الموقّع)، `renew` (retainer: مدة إضافية بنفس الطول)، `duplicate`، `setMilestone` (المراحل فقط تُنجز يدوياً؛ الدفعات تُسوّى بالفواتير)، `fromQuote` (تعبئة من عرض: العميل، القيمة، نطاق العمل من البنود).
+- حالات محسوبة لا تُخزَّن: العقد `expired` (ساري وتجاوز `end_date`)، والبند `overdue` (معلّق وتجاوز `due_date`). قيمة العقد: `value` للمشروع، ومجموع الدفعات غير الملغاة للشهري (تشمل التجديدات).
+- المبالغ هي المبالغ المتفق عليها؛ الضريبة تُطبَّق عند الفوترة (المرحلة 4). **للمرحلة 4:** `contract_schedules.invoice_id` جاهز بلا مفتاح أجنبي؛ الفوترة تُنشئ فاتورة من بند دفعة معلّق ثم تضع `invoice_id` وتجعل الحالة `done` عند السداد. ملخص «دفعات مستحقة خلال 30 يوماً» في صفحة العقود يستثني البنود ذات `invoice_id`.
+- `contracts.project_id` جاهز بلا مفتاح أجنبي للخطوة 5 (أضف «إنشاء مشروع» من العقد الساري أو العرض المقبول).
+- PDF: `ContractPdf` + `resources/views/pdf/contract.php` (طرفان، نطاق العمل، المدة والمقابل، جدول الدفعات، المراحل، الشروط، خانتا توقيع). علامة مائية: مسودة / ملغى / مفسوخ. الرابط `/crm/contracts/{id}/pdf`.
+- الشروط الافتراضية لكل نوع في صفحة بيانات الشركة ← `PUT /settings/contract-defaults` (`contracts.terms_project`، `contracts.terms_retainer`).
+- الواجهات: `pages/crm/contracts/{Index,Edit,Show}.vue`، `components/crm/ContractList.vue` (في صفحات العميل والفرصة والعرض)، زر «إنشاء عقد» في صفحة العرض المُرسل/المقبول، تبويب «العقود» في `CrmTabs`.
+- النسخة الموقّعة من العقد تُرفع لاحقاً كمرفق (الخطوة 6).
+
 ## نطاق المرحلة 2 (العملاء والمشاريع والعقود + ربط التخزين)
 
 **CRM**
@@ -81,6 +94,6 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 1. ~~الجداول والنماذج والاختبارات لـ CRM.~~ ✅
 2. ~~واجهات CRM (Kanban، العملاء، الفرص، الأنشطة، التحويل).~~ ✅
 3. ~~الخدمات وعروض الأسعار + PDF.~~ ✅
-4. العقود.
+4. ~~العقود.~~ ✅
 5. المشاريع ومساحة المشروع.
 6. ربط التخزين والمرفقات.

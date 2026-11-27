@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
-import { Pencil, Send, FileDown, Eye, CheckCircle2, XCircle, Ban, Copy, Trash2, Building2, Handshake, UserRound, CalendarDays, AlertTriangle } from '@lucide/vue';
+import { Pencil, Send, FileDown, Eye, CheckCircle2, XCircle, Ban, Copy, Trash2, FileSignature, Building2, Handshake, UserRound, CalendarDays, AlertTriangle } from '@lucide/vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import Btn from '@/components/Btn.vue';
@@ -9,11 +9,12 @@ import Badge from '@/components/Badge.vue';
 import Modal from '@/components/Modal.vue';
 import Field from '@/components/Field.vue';
 import CrmTabs from '@/components/crm/CrmTabs.vue';
+import ContractList from '@/components/crm/ContractList.vue';
 import { useAuth } from '@/lib/auth';
 import { formatDate, formatDateTime, formatNumber } from '@/lib/format';
 import { money, quoteStatusTone } from '@/lib/crm';
 
-const props = defineProps({ quote: Object, copies: Array, log: Array, statuses: Object, oppStages: Object });
+const props = defineProps({ quote: Object, copies: Array, log: Array, statuses: Object, oppStages: Object, contracts: Array, contractStatuses: Object });
 const { can } = useAuth();
 const page = usePage();
 const q = computed(() => props.quote);
@@ -58,6 +59,7 @@ const open = computed(() => ['sent', 'expired'].includes(q.value.status));
                     <Btn variant="secondary" class="!text-red-600" @click="rejecting = true"><XCircle class="size-4" /> رفض</Btn>
                 </template>
                 <Btn v-if="(open || q.status === 'rejected') && q.can_edit" variant="ghost" title="إلغاء العرض" @click="cancel"><Ban class="size-4" /></Btn>
+                <Btn v-if="['accepted', 'sent', 'expired'].includes(q.status) && can('crm.create')" :variant="q.status === 'accepted' ? 'primary' : 'secondary'" :href="`/crm/contracts/create?quote_id=${q.id}`"><FileSignature class="size-4" /> إنشاء عقد</Btn>
                 <Btn v-if="q.status !== 'draft' && can('crm.create')" variant="ghost" title="نسخة جديدة" @click="duplicate"><Copy class="size-4" /> نسخة جديدة</Btn>
                 <Btn v-if="q.can_delete" variant="ghost" title="حذف المسودة" @click="destroy"><Trash2 class="size-4" /></Btn>
             </template>
@@ -74,7 +76,7 @@ const open = computed(() => ['sent', 'expired'].includes(q.value.status));
             <strong>رفضه العميل</strong> في {{ formatDate(q.rejected_at) }}<template v-if="q.rejection_reason"> — {{ q.rejection_reason }}</template>
         </div>
         <div v-if="q.status === 'accepted'" class="mb-6 rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-900">
-            <strong>قبله العميل</strong> في {{ formatDate(q.accepted_at) }}. سيُحوَّل إلى مشروع عند تفعيل موديول المشاريع.
+            <strong>قبله العميل</strong> في {{ formatDate(q.accepted_at) }}.<template v-if="!contracts.length"> أنشئ عقداً منه ليُنسخ العميل والقيمة ونطاق العمل.</template>
         </div>
 
         <div class="grid gap-6 xl:grid-cols-3">
@@ -135,6 +137,7 @@ const open = computed(() => ['sent', 'expired'].includes(q.value.status));
                         <div v-for="c in copies" :key="c.id" class="text-xs text-slate-500">نسخة لاحقة: <Link :href="`/crm/quotes/${c.id}`" class="text-brand hover:underline">{{ c.number ?? 'مسودة' }}</Link> ({{ statuses[c.status] }})</div>
                     </dl>
                 </div>
+                <ContractList v-if="contracts.length" :contracts="contracts" :statuses="contractStatuses" />
                 <div class="card p-5">
                     <h3 class="mb-3 font-semibold text-navy">السجل</h3>
                     <ol class="relative space-y-4 border-s border-slate-200 ps-4">

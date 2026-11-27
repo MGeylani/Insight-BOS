@@ -69,6 +69,33 @@ return [
         'cancelled' => 'ملغى',
     ],
 
+    'contract_types' => [
+        'project' => 'عقد مشروع',
+        'retainer' => 'عقد شهري (Retainer)',
+    ],
+
+    'contract_statuses' => [
+        'draft' => 'مسودة',
+        'sent' => 'بانتظار التوقيع',
+        'active' => 'ساري',
+        'expired' => 'انتهت مدته', // derived: active and past its end date
+        'completed' => 'منتهٍ',
+        'terminated' => 'مفسوخ',
+        'cancelled' => 'ملغى',
+    ],
+
+    'contract_schedule_statuses' => [
+        'pending' => 'قادمة',
+        'overdue' => 'مستحقة', // derived: pending and past its due date
+        'done' => 'منجزة',
+        'cancelled' => 'ملغاة',
+    ],
+
+    'billing_timings' => [
+        'advance' => 'مقدماً (أول الشهر)',
+        'arrears' => 'مؤخراً (آخر الشهر)',
+    ],
+
     // Suggestions for the unit field of services and quote lines (free text is allowed).
     'service_units' => ['مشروع', 'شهر', 'منشور', 'فيديو', 'تصميم', 'ساعة', 'يوم', 'صفحة', 'قطعة', 'حملة'],
 

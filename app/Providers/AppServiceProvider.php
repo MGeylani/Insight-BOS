@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\Client;
+use App\Models\Contract;
 use App\Models\Lead;
 use App\Models\Opportunity;
 use App\Models\Quote;
@@ -39,6 +40,7 @@ class AppServiceProvider extends ServiceProvider
             'opportunity' => Opportunity::class,
             'quote' => Quote::class,
             'service' => Service::class,
+            'contract' => Contract::class,
         ]);
 
         Password::defaults(fn () => Password::min(10)->letters()->numbers());

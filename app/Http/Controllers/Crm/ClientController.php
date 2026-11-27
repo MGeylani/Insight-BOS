@@ -80,6 +80,8 @@ class ClientController extends CrmController
             'activities' => $client->activities->map(fn ($a) => $this->activityPayload($a)),
             'quotes' => $this->quoteList($client->quotes(), $request->user()),
             'quoteStatuses' => config('crm.quote_statuses'),
+            'contracts' => $this->contractList($client->contracts(), $request->user()),
+            'contractStatuses' => config('crm.contract_statuses'),
             'stats' => [
                 'won_total' => round($won->sum(fn ($o) => $o->amountInBase() ?? 0), 2),
                 'won_count' => $won->count(),
