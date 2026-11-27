@@ -153,6 +153,7 @@ class ContractController extends CrmController
                 'missing_rate' => $contract->isDraft() && ExchangeRates::rateFor($contract->currency) === null,
             ],
             'copies' => Contract::visibleTo($user)->where('source_contract_id', $contract->id)->get(['id', 'number', 'status']),
+            'project' => $this->projectLink($contract->project_id, $user),
             'log' => $log->map(fn ($l) => [
                 'id' => $l->id, 'description' => $l->description,
                 'user' => $l->user?->name, 'created_at' => $l->created_at?->toIso8601String(),

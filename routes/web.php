@@ -16,6 +16,8 @@ use App\Http\Controllers\Crm\ServiceController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Projects\ProjectController;
+use App\Http\Controllers\Projects\ProjectItemController;
 use App\Http\Controllers\Settings\CompanyController;
 use App\Http\Controllers\Settings\CurrencyController;
 use App\Http\Controllers\Settings\NumberingController;
@@ -117,6 +119,45 @@ Route::middleware('auth')->group(function () {
             Route::delete('services/{service}', [ServiceController::class, 'destroy'])->name('services.destroy');
         });
         Route::post('leads/{lead}/convert', [LeadController::class, 'convert'])->middleware('can:crm.convert')->name('leads.convert');
+    });
+
+    // Projects. Record-level checks (own / assigned / all) happen in the controllers.
+    Route::prefix('projects')->group(function () {
+        Route::middleware('can:projects.view')->group(function () {
+            Route::get('/', [ProjectController::class, 'index'])->name('projects.index');
+            Route::get('{project}', [ProjectController::class, 'show'])->whereNumber('project')->name('projects.show');
+        });
+        Route::middleware('can:projects.create')->group(function () {
+            Route::get('create', [ProjectController::class, 'create'])->name('projects.create');
+            Route::post('/', [ProjectController::class, 'store'])->name('projects.store');
+        });
+        Route::middleware('can:projects.edit')->group(function () {
+            Route::get('{project}/edit', [ProjectController::class, 'edit'])->name('projects.edit');
+            Route::put('{project}', [ProjectController::class, 'update'])->name('projects.update');
+            Route::post('{project}/status', [ProjectController::class, 'status'])->name('projects.status');
+
+            Route::post('{project}/milestones', [ProjectItemController::class, 'storeMilestone'])->name('projects.milestones.store');
+            Route::put('{project}/milestones/{milestone}', [ProjectItemController::class, 'updateMilestone'])->name('projects.milestones.update');
+            Route::post('{project}/milestones/{milestone}/toggle', [ProjectItemController::class, 'toggleMilestone'])->name('projects.milestones.toggle');
+            Route::post('{project}/milestones/{milestone}/move', [ProjectItemController::class, 'moveMilestone'])->name('projects.milestones.move');
+            Route::delete('{project}/milestones/{milestone}', [ProjectItemController::class, 'destroyMilestone'])->name('projects.milestones.destroy');
+
+            Route::post('{project}/risks', [ProjectItemController::class, 'storeRisk'])->name('projects.risks.store');
+            Route::put('{project}/risks/{risk}', [ProjectItemController::class, 'updateRisk'])->name('projects.risks.update');
+            Route::delete('{project}/risks/{risk}', [ProjectItemController::class, 'destroyRisk'])->name('projects.risks.destroy');
+
+            Route::post('{project}/issues', [ProjectItemController::class, 'storeIssue'])->name('projects.issues.store');
+            Route::put('{project}/issues/{issue}', [ProjectItemController::class, 'updateIssue'])->name('projects.issues.update');
+            Route::delete('{project}/issues/{issue}', [ProjectItemController::class, 'destroyIssue'])->name('projects.issues.destroy');
+
+            Route::post('{project}/changes', [ProjectItemController::class, 'storeChange'])->name('projects.changes.store');
+            Route::delete('{project}/changes/{change}', [ProjectItemController::class, 'destroyChange'])->name('projects.changes.destroy');
+        });
+        Route::middleware('can:projects.approve_changes')->group(function () {
+            Route::post('{project}/changes/{change}/approve', [ProjectItemController::class, 'approveChange'])->name('projects.changes.approve');
+            Route::post('{project}/changes/{change}/reject', [ProjectItemController::class, 'rejectChange'])->name('projects.changes.reject');
+        });
+        Route::delete('{project}', [ProjectController::class, 'destroy'])->middleware('can:projects.delete')->name('projects.destroy');
     });
 
     Route::prefix('admin')->name('admin.')->group(function () {

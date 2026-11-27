@@ -3,7 +3,7 @@ import { computed, ref } from 'vue';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import {
     Pencil, Send, FileDown, Eye, PenLine, Ban, Copy, Trash2, Building2, Handshake, UserRound, CalendarDays, AlertTriangle,
-    RefreshCw, CheckCheck, XOctagon, FileText, Wallet, Flag, CheckCircle2, Circle,
+    RefreshCw, CheckCheck, XOctagon, FileText, Wallet, Flag, CheckCircle2, Circle, Briefcase,
 } from '@lucide/vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import PageHeader from '@/components/PageHeader.vue';
@@ -18,7 +18,7 @@ import { money, contractStatusTone, scheduleStatusTone } from '@/lib/crm';
 
 const props = defineProps({
     contract: Object, copies: Array, log: Array, statuses: Object, types: Object,
-    scheduleStatuses: Object, billingTimings: Object, oppStages: Object,
+    scheduleStatuses: Object, billingTimings: Object, oppStages: Object, project: Object,
 });
 const { can } = useAuth();
 const page = usePage();
@@ -78,6 +78,7 @@ const btnLink = 'inline-flex items-center gap-2 rounded-xl border border-slate-3
                     <Btn variant="secondary" :loading="busy" @click="complete"><CheckCheck class="size-4" /> إنهاء</Btn>
                     <Btn variant="ghost" class="!text-red-600" title="فسخ العقد" @click="terminating = true"><XOctagon class="size-4" /> فسخ</Btn>
                 </template>
+                <Btn v-if="['sent', 'active'].includes(c.status) && !project && can('projects.create')" :variant="c.status === 'active' ? 'primary' : 'secondary'" :href="`/projects/create?contract_id=${c.id}`"><Briefcase class="size-4" /> إنشاء مشروع</Btn>
                 <Btn v-if="c.status !== 'draft' && can('crm.create')" variant="ghost" title="نسخة جديدة" @click="duplicate"><Copy class="size-4" /> نسخة جديدة</Btn>
                 <Btn v-if="c.can_delete" variant="ghost" title="حذف المسودة" @click="destroy"><Trash2 class="size-4" /></Btn>
             </template>
@@ -198,6 +199,7 @@ const btnLink = 'inline-flex items-center gap-2 rounded-xl border border-slate-3
                         <div class="flex items-center gap-2"><CalendarDays class="size-4 text-slate-400" />الإصدار: {{ formatDate(c.issue_date) }}</div>
                         <div v-if="c.signed_on" class="flex items-center gap-2"><PenLine class="size-4 text-slate-400" />وُقّع {{ formatDate(c.signed_on) }}<template v-if="c.client_signatory"> · {{ c.client_signatory }}</template></div>
                         <div v-if="c.fx_rate && c.currency !== 'USD'" class="text-xs text-slate-500">سعر الصرف عند الإصدار: <span class="num">1 USD = {{ formatNumber(c.fx_rate, 4) }} {{ c.currency }}</span></div>
+                        <div v-if="project" class="flex items-center gap-2"><Briefcase class="size-4 text-slate-400" /><Link v-if="project.can_open" :href="`/projects/${project.id}`" class="text-brand hover:underline">{{ project.number }} · {{ project.name }}</Link><span v-else>{{ project.number }} · {{ project.name }}</span></div>
                         <div v-if="c.source" class="text-xs text-slate-500">نسخة من <Link :href="`/crm/contracts/${c.source.id}`" class="text-brand hover:underline">{{ c.source.number ?? 'مسودة' }}</Link></div>
                         <div v-for="x in copies" :key="x.id" class="text-xs text-slate-500">نسخة لاحقة: <Link :href="`/crm/contracts/${x.id}`" class="text-brand hover:underline">{{ x.number ?? 'مسودة' }}</Link> ({{ statuses[x.status] }})</div>
                     </dl>

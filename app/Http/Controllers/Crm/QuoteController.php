@@ -134,6 +134,7 @@ class QuoteController extends CrmController
             'copies' => Quote::visibleTo($user)->where('source_quote_id', $quote->id)->get(['id', 'number', 'status']),
             'contracts' => $this->contractList($quote->contracts(), $user),
             'contractStatuses' => config('crm.contract_statuses'),
+            'project' => $this->projectLink($quote->project_id, $user),
             'log' => $log->map(fn ($l) => [
                 'id' => $l->id, 'action' => $l->action, 'description' => $l->description,
                 'user' => $l->user?->name, 'created_at' => $l->created_at?->toIso8601String(),

@@ -116,4 +116,10 @@ class Quote extends Model
     {
         return $this->hasMany(Contract::class)->latest('id');
     }
+
+    /** The project this quote turned into (set by Services\Projects\Projects::create). */
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class)->withTrashed();
+    }
 }

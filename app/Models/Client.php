@@ -65,4 +65,9 @@ class Client extends Model
     {
         return $this->hasMany(Contract::class)->latest('id');
     }
+
+    public function projects(): HasMany
+    {
+        return $this->hasMany(Project::class)->latest('id');
+    }
 }
