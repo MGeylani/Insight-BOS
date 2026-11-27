@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { LogOut, Menu, X, UserCog, TriangleAlert, CircleCheck } from '@lucide/vue';
+import NotificationBell from '@/components/NotificationBell.vue';
 import { navigation } from '@/lib/navigation';
 import { useAuth } from '@/lib/auth';
 import { initials } from '@/lib/format';
@@ -57,7 +58,7 @@ const logout = () => router.post('/logout');
                                 v-if="!item.soon"
                                 :href="item.href"
                                 class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition"
-                                :class="isActive(item.href) ? 'bg-white text-navy font-semibold shadow-lg shadow-navy-900/20' : 'text-white/85 hover:bg-white/10'"
+                                :class="isActive(item.match ?? item.href) ? 'bg-white text-navy font-semibold shadow-lg shadow-navy-900/20' : 'text-white/85 hover:bg-white/10'"
                             >
                                 <component :is="item.icon" class="size-[18px] shrink-0" />
                                 {{ item.label }}
@@ -80,7 +81,8 @@ const logout = () => router.post('/logout');
             <header class="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-slate-200/70 bg-white/85 px-4 backdrop-blur sm:px-8">
                 <button class="rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden" @click="mobileOpen = true"><Menu class="size-5" /></button>
                 <img src="/images/logo.svg" alt="Insight Media" class="h-7 lg:hidden" />
-                <div class="ms-auto relative">
+                <NotificationBell class="ms-auto" />
+                <div class="relative">
                     <button class="flex items-center gap-3 rounded-xl py-1.5 ps-1.5 pe-3 hover:bg-slate-100" @click="menuOpen = !menuOpen">
                         <span class="flex size-9 items-center justify-center rounded-full bg-navy text-sm font-semibold text-white">{{ initials(user?.name) }}</span>
                         <span class="hidden text-start sm:block">

@@ -25,8 +25,8 @@ class CrmServicesTest extends TestCase
     public function test_phone_is_normalized_for_matching(): void
     {
         $lead = Lead::factory()->create(['phone' => '+90 (532) 111 22 33']);
-        $this->assertSame('532112233', $lead->phone_normalized);
-        $this->assertSame('532112233', Lead::normalizePhone('0532 111 22 33'));
+        $this->assertSame('321112233', $lead->phone_normalized);
+        $this->assertSame('321112233', Lead::normalizePhone('0532 111 22 33'));
         $this->assertNull(Lead::normalizePhone('12'));
     }
 

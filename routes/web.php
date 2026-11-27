@@ -5,6 +5,12 @@ use App\Http\Controllers\Admin\RoleTemplateController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordResetController;
+use App\Http\Controllers\Crm\ActivityController;
+use App\Http\Controllers\Crm\ClientController;
+use App\Http\Controllers\Crm\ContactController;
+use App\Http\Controllers\Crm\LeadController;
+use App\Http\Controllers\Crm\OpportunityController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Settings\CompanyController;
@@ -31,6 +37,49 @@ Route::middleware('auth')->group(function () {
     Route::get('profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('profile/password', [ProfileController::class, 'password'])->middleware('throttle:6,1')->name('profile.password');
+
+    Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('notifications/read', [NotificationController::class, 'read'])->name('notifications.read');
+
+    // CRM. Record-level checks (own / assigned / all) happen in the controllers.
+    Route::prefix('crm')->name('crm.')->group(function () {
+        Route::middleware('can:crm.view')->group(function () {
+            Route::get('leads', [LeadController::class, 'index'])->name('leads.index');
+            Route::get('leads/duplicates', [LeadController::class, 'duplicates'])->name('leads.duplicates');
+            Route::get('leads/{lead}', [LeadController::class, 'show'])->name('leads.show');
+            Route::get('clients', [ClientController::class, 'index'])->name('clients.index');
+            Route::get('clients/{client}', [ClientController::class, 'show'])->name('clients.show');
+            Route::get('opportunities', [OpportunityController::class, 'index'])->name('opportunities.index');
+            Route::get('opportunities/{opportunity}', [OpportunityController::class, 'show'])->name('opportunities.show');
+            Route::get('activities', [ActivityController::class, 'index'])->name('activities.index');
+            Route::post('activities', [ActivityController::class, 'store'])->name('activities.store');
+            Route::put('activities/{activity}', [ActivityController::class, 'update'])->name('activities.update');
+            Route::post('activities/{activity}/complete', [ActivityController::class, 'complete'])->name('activities.complete');
+        });
+        Route::middleware('can:crm.create')->group(function () {
+            Route::post('leads', [LeadController::class, 'store'])->name('leads.store');
+            Route::post('clients', [ClientController::class, 'store'])->name('clients.store');
+            Route::post('opportunities', [OpportunityController::class, 'store'])->name('opportunities.store');
+        });
+        Route::middleware('can:crm.edit')->group(function () {
+            Route::put('leads/{lead}', [LeadController::class, 'update'])->name('leads.update');
+            Route::post('leads/{lead}/move', [LeadController::class, 'move'])->name('leads.move');
+            Route::post('leads/{lead}/merge', [LeadController::class, 'merge'])->name('leads.merge');
+            Route::put('clients/{client}', [ClientController::class, 'update'])->name('clients.update');
+            Route::post('clients/{client}/contacts', [ContactController::class, 'store'])->name('contacts.store');
+            Route::put('clients/{client}/contacts/{contact}', [ContactController::class, 'update'])->name('contacts.update');
+            Route::delete('clients/{client}/contacts/{contact}', [ContactController::class, 'destroy'])->name('contacts.destroy');
+            Route::put('opportunities/{opportunity}', [OpportunityController::class, 'update'])->name('opportunities.update');
+            Route::post('opportunities/{opportunity}/stage', [OpportunityController::class, 'stage'])->name('opportunities.stage');
+            Route::delete('activities/{activity}', [ActivityController::class, 'destroy'])->name('activities.destroy');
+        });
+        Route::middleware('can:crm.delete')->group(function () {
+            Route::delete('leads/{lead}', [LeadController::class, 'destroy'])->name('leads.destroy');
+            Route::delete('clients/{client}', [ClientController::class, 'destroy'])->name('clients.destroy');
+            Route::delete('opportunities/{opportunity}', [OpportunityController::class, 'destroy'])->name('opportunities.destroy');
+        });
+        Route::post('leads/{lead}/convert', [LeadController::class, 'convert'])->middleware('can:crm.convert')->name('leads.convert');
+    });
 
     Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('users', [UserController::class, 'index'])->middleware('can:users.view')->name('users.index');

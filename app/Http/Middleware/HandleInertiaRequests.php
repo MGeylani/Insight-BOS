@@ -33,6 +33,7 @@ class HandleInertiaRequests extends Middleware
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
             ],
+            'notifications_unread' => fn () => $user ? $user->unreadNotifications()->count() : 0,
             'alerts' => fn () => [
                 'missing_rates' => $user && $user->hasPermission('settings.exchange_rates')
                     ? ExchangeRates::missingToday() : [],

@@ -3,6 +3,7 @@ import {
     ShieldCheck, ScrollText, Building2, Coins, Tags, Hash, Cloud, KeyRound,
 } from '@lucide/vue';
 
+// `match` widens the active state to a whole section (e.g. every /crm page).
 // `soon: true` items are planned modules (later phases) shown greyed out.
 export const navigation = [
     {
@@ -12,7 +13,7 @@ export const navigation = [
     {
         label: 'العمل',
         items: [
-            { label: 'العملاء والمبيعات', icon: Users, perm: 'crm.view', soon: true },
+            { label: 'العملاء والمبيعات', href: '/crm/leads', match: '/crm', icon: Users, perm: 'crm.view' },
             { label: 'المشاريع', icon: Briefcase, perm: 'projects.view', soon: true },
             { label: 'المهام', icon: ListChecks, perm: 'tasks.view', soon: true },
             { label: 'المالية', icon: Wallet, perm: 'finance.view', soon: true },
