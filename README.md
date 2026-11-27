@@ -24,6 +24,10 @@ php artisan serve
 php artisan test
 ```
 
+## للجلسات الجديدة
+
+ابدأ بقراءة [docs/HANDOFF.md](docs/HANDOFF.md): الحالة، الأعراف، ونطاق المرحلة التالية.
+
 ## النشر
 
 انظر [docs/DEPLOY.md](docs/DEPLOY.md).
