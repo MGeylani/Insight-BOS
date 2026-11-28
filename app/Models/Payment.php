@@ -17,7 +17,7 @@ class Payment extends Model
     use VisibleByScope;
 
     protected $fillable = [
-        'kind', 'client_id', 'account_id', 'refund_of_id', 'date', 'amount', 'currency', 'fx_rate', 'method', 'reference', 'notes', 'created_by',
+        'kind', 'status', 'client_id', 'account_id', 'refund_of_id', 'date', 'amount', 'currency', 'fx_rate', 'method', 'reference', 'notes', 'created_by',
     ];
 
     protected function casts(): array

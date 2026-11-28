@@ -42,7 +42,7 @@ class Payments
         return DB::transaction(function () use ($data, $allocations, $account, $date, $rate, $userId) {
             $p = new Payment([
                 ...collect($data)->only('client_id', 'amount', 'method', 'reference', 'notes')->all(),
-                'kind' => 'receipt', 'account_id' => $account->id, 'currency' => $account->currency, 'fx_rate' => $rate,
+                'kind' => 'receipt', 'status' => 'posted', 'account_id' => $account->id, 'currency' => $account->currency, 'fx_rate' => $rate,
                 'date' => $date->toDateString(), 'created_by' => $userId,
             ]);
             $p->number = NumberSequencer::next('receipt');
@@ -113,7 +113,7 @@ class Payments
 
         return DB::transaction(function () use ($receipt, $data, $amount, $account, $date, $userId) {
             $r = new Payment([
-                'kind' => 'refund', 'client_id' => $receipt->client_id, 'account_id' => $account->id, 'refund_of_id' => $receipt->id,
+                'kind' => 'refund', 'status' => 'posted', 'client_id' => $receipt->client_id, 'account_id' => $account->id, 'refund_of_id' => $receipt->id,
                 'date' => $date->toDateString(), 'amount' => $amount, 'currency' => $account->currency, 'fx_rate' => self::rate($account->currency, $date),
                 'method' => $data['method'] ?? $receipt->method, 'reference' => $data['reference'] ?? null, 'notes' => $data['notes'] ?? null, 'created_by' => $userId,
             ]);
