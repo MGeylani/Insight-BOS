@@ -1,0 +1,1 @@
+import{t as e}from"./createLucideIcon-nVlsmOnO.js";var t=e({name:`circle-dot`,size:24,node:[[`circle`,{cx:`12`,cy:`12`,r:`1`,key:`41hilf`}],[`circle`,{cx:`12`,cy:`12`,r:`10`,key:`1mglay`}]]});export{t};
