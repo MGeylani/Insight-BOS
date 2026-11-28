@@ -181,7 +181,7 @@ class Task extends Model
 
     public function tags(): BelongsToMany
     {
-        return $this->belongsToMany(Tag::class)->orderBy('tags.name');
+        return $this->belongsToMany(Tag::class, 'task_tag')->orderBy('tags.name');
     }
 
     public function checklists(): HasMany
