@@ -28,6 +28,21 @@ return [
     // Receivables aging buckets (days past due).
     'aging_buckets' => ['current' => 'غير مستحقة', '1_30' => '1–30 يوماً', '31_60' => '31–60', '61_90' => '61–90', '90_plus' => 'أكثر من 90'],
 
+    // Expenses (step 3).
+    'paid_by' => [
+        'account' => 'دُفع من حساب الشركة', 'employee' => 'دفعه الموظف (يُعوَّض)', 'advance' => 'من عهدة/سلفة', 'credit' => 'فاتورة مورد (آجل)',
+    ],
+    'expense_statuses' => ['pending' => 'بانتظار الاعتماد', 'approved' => 'معتمد', 'rejected' => 'مرفوض', 'cancelled' => 'ملغى'],
+    'settlement_labels' => [
+        'unpaid' => 'غير مسدّدة', 'partial' => 'مسدّدة جزئياً', 'paid' => 'مسدّدة', 'overdue' => 'متأخرة',
+        'to_reimburse' => 'بانتظار التعويض', 'reimbursed' => 'عُوِّض',
+    ],
+    'expense_category_kinds' => ['direct' => 'تكلفة مباشرة (أعمال العملاء)', 'overhead' => 'مصاريف عامة (تشغيل الوكالة)'],
+    'expense_receipt_required' => true,
+    'vendor_types' => ['company' => 'شركة', 'freelancer' => 'مستقل'],
+    'vendor_payment_days' => 30,
+    'advance_kinds' => ['petty_cash' => 'عهدة نثرية', 'salary_advance' => 'سلفة على الراتب'],
+
     // Days from issue to due date when nothing else is set (Settings → company data).
     'payment_days' => 14,
 

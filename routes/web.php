@@ -48,6 +48,11 @@ use App\Http\Controllers\Finance\InvoiceController;
 use App\Http\Controllers\Finance\PaymentController;
 use App\Http\Controllers\Finance\AccountController;
 use App\Http\Controllers\Finance\ReceivablesController;
+use App\Http\Controllers\Finance\ExpenseController;
+use App\Http\Controllers\Finance\ExpenseCategoryController;
+use App\Http\Controllers\Finance\VendorController;
+use App\Http\Controllers\Finance\AdvanceController;
+use App\Http\Controllers\Finance\ReimbursementController;
 use Illuminate\Support\Facades\Route;
 
 // Intake forms: public ones open without signing in; internal ones send guests to the login page.
@@ -223,6 +228,40 @@ Route::middleware('auth')->group(function () {
 
     // Finance (phase 4). Record-level checks (own / all) happen in the controllers.
     Route::prefix('finance')->name('finance.')->group(function () {
+        // Expenses and advances: employees submit their own (finance.expense); checks are in the controllers.
+        Route::get('expenses', [ExpenseController::class, 'index'])->name('expenses.index');
+        Route::get('expenses/create', [ExpenseController::class, 'create'])->name('expenses.create');
+        Route::post('expenses', [ExpenseController::class, 'store'])->name('expenses.store');
+        Route::get('expenses/{expense}', [ExpenseController::class, 'show'])->whereNumber('expense')->name('expenses.show');
+        Route::get('expenses/{expense}/edit', [ExpenseController::class, 'edit'])->name('expenses.edit');
+        Route::put('expenses/{expense}', [ExpenseController::class, 'update'])->name('expenses.update');
+        Route::post('expenses/{expense}/approve', [ExpenseController::class, 'approve'])->name('expenses.approve');
+        Route::post('expenses/{expense}/reject', [ExpenseController::class, 'reject'])->name('expenses.reject');
+        Route::post('expenses/{expense}/cancel', [ExpenseController::class, 'cancel'])->name('expenses.cancel');
+        Route::post('expense-categories', [ExpenseCategoryController::class, 'store'])->name('expense-categories.store');
+        Route::put('expense-categories/{category}', [ExpenseCategoryController::class, 'update'])->name('expense-categories.update');
+        Route::delete('expense-categories/{category}', [ExpenseCategoryController::class, 'destroy'])->name('expense-categories.destroy');
+        Route::post('vendors', [VendorController::class, 'store'])->name('vendors.store');
+        Route::get('advances', [AdvanceController::class, 'index'])->name('advances.index');
+        Route::post('advances', [AdvanceController::class, 'store'])->name('advances.store');
+        Route::get('advances/{advance}', [AdvanceController::class, 'show'])->name('advances.show');
+        Route::post('advances/{advance}/return', [AdvanceController::class, 'returnMoney'])->name('advances.return');
+        Route::post('advances/{advance}/reverse', [AdvanceController::class, 'reverse'])->name('advances.reverse');
+        Route::get('reimbursements', [ReimbursementController::class, 'index'])->name('reimbursements.index');
+        Route::post('reimbursements', [ReimbursementController::class, 'store'])->name('reimbursements.store');
+        Route::post('reimbursements/{reimbursement}/reverse', [ReimbursementController::class, 'reverse'])->name('reimbursements.reverse');
+        Route::post('vendors/{vendor}/pay', [VendorController::class, 'pay'])->name('vendors.pay');
+        Route::post('vendor-payments/{payment}/allocate', [VendorController::class, 'allocate'])->name('vendor-payments.allocate');
+        Route::post('vendor-payments/{payment}/reverse', [VendorController::class, 'reversePayment'])->name('vendor-payments.reverse');
+        Route::middleware('can:finance.view')->group(function () {
+            Route::get('vendors', [VendorController::class, 'index'])->name('vendors.index');
+            Route::get('vendors/{vendor}', [VendorController::class, 'show'])->name('vendors.show');
+        });
+        Route::middleware('can:finance.edit')->group(function () {
+            Route::put('vendors/{vendor}', [VendorController::class, 'update'])->name('vendors.update');
+            Route::delete('vendors/{vendor}', [VendorController::class, 'destroy'])->name('vendors.destroy');
+        });
+
         Route::middleware('can:finance.view')->group(function () {
             Route::get('invoices', [InvoiceController::class, 'index'])->name('invoices.index');
             Route::get('invoices/{invoice}', [InvoiceController::class, 'show'])->whereNumber('invoice')->name('invoices.show');

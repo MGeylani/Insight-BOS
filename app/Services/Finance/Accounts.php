@@ -4,7 +4,12 @@ namespace App\Services\Finance;
 
 use App\Models\Account;
 use App\Models\AccountTransfer;
+use App\Models\Advance;
+use App\Models\AdvanceReturn;
+use App\Models\Expense;
 use App\Models\Payment;
+use App\Models\Reimbursement;
+use App\Models\VendorPayment;
 use App\Services\ActivityLogger;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
@@ -14,7 +19,8 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Cash and bank accounts. Balances are never stored: opening balance + every movement up to a date.
- * Movements: receipts and refunds, transfers (later steps add expenses and vendor payments in movements()).
+ * Movements: receipts and refunds, transfers, approved expenses paid from the account, vendor payments,
+ * reimbursements, advances handed out and returned.
  */
 class Accounts
 {
@@ -50,7 +56,28 @@ class Accounts
                 'date' => $t->date->toDateString(), 'amount' => (float) $t->to_amount, 'kind' => 'transfer_in',
                 'label' => 'تحويل من '.$t->from?->name, 'ref' => $t->reference, 'url' => null, 'sort' => $t->id, 'transfer_id' => $t->id,
             ]);
-        $all = $payments->concat($out)->concat($in);
+        $acc = $account->id;
+        $expenses = $range(Expense::approved()->where('paid_by', 'account')->where('account_id', $acc))->get()->map(fn (Expense $e) => [
+            'date' => $e->date->toDateString(), 'amount' => -(float) $e->amount, 'kind' => 'expense', 'label' => 'مصروف: '.$e->description,
+            'ref' => $e->number, 'url' => "/finance/expenses/{$e->id}", 'sort' => $e->id,
+        ]);
+        $vendor = $range(VendorPayment::with('vendor:id,name')->posted()->where('account_id', $acc))->get()->map(fn (VendorPayment $p) => [
+            'date' => $p->date->toDateString(), 'amount' => -(float) $p->amount, 'kind' => 'vendor_payment', 'label' => 'دفعة إلى '.($p->vendor?->name ?? '—'),
+            'ref' => $p->number, 'url' => "/finance/vendors/{$p->vendor_id}", 'sort' => $p->id,
+        ]);
+        $reimb = $range(Reimbursement::with('user:id,name')->where('status', 'posted')->where('account_id', $acc))->get()->map(fn (Reimbursement $r) => [
+            'date' => $r->date->toDateString(), 'amount' => -(float) $r->amount, 'kind' => 'reimbursement', 'label' => 'تعويض مصروفات '.($r->user?->name ?? '—'),
+            'ref' => $r->reference, 'url' => '/finance/reimbursements', 'sort' => $r->id,
+        ]);
+        $adv = $range(Advance::with('user:id,name')->posted()->where('account_id', $acc))->get()->map(fn (Advance $a) => [
+            'date' => $a->date->toDateString(), 'amount' => -(float) $a->amount, 'kind' => 'advance',
+            'label' => ($a->kind === 'petty_cash' ? 'عهدة نثرية: ' : 'سلفة: ').($a->user?->name ?? '—'), 'ref' => $a->number, 'url' => "/finance/advances/{$a->id}", 'sort' => $a->id,
+        ]);
+        $back = $range(AdvanceReturn::with('advance.user:id,name')->where('account_id', $acc)->whereHas('advance', fn ($q) => $q->posted()))->get()->map(fn (AdvanceReturn $r) => [
+            'date' => $r->date->toDateString(), 'amount' => (float) $r->amount, 'kind' => 'advance_return',
+            'label' => 'مرتجع عهدة: '.($r->advance?->user?->name ?? '—'), 'ref' => $r->advance?->number, 'url' => "/finance/advances/{$r->advance_id}", 'sort' => $r->id,
+        ]);
+        $all = $payments->concat($out)->concat($in)->concat($expenses)->concat($vendor)->concat($reimb)->concat($adv)->concat($back);
 
         return $all->sortBy([['date', 'asc'], ['sort', 'asc']])->values();
     }

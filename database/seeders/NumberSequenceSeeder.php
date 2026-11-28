@@ -16,6 +16,8 @@ class NumberSequenceSeeder extends Seeder
             ['type' => 'expense', 'label' => 'المصروفات', 'prefix' => 'EXP'],
             ['type' => 'contract', 'label' => 'العقود', 'prefix' => 'CTR'],
             ['type' => 'project', 'label' => 'المشاريع', 'prefix' => 'PRJ'],
+            ['type' => 'advance', 'label' => 'السلف والعهد', 'prefix' => 'ADV'],
+            ['type' => 'vendor_payment', 'label' => 'دفعات الموردين', 'prefix' => 'VP'],
         ];
         foreach ($rows as $r) {
             NumberSequence::firstOrCreate(['type' => $r['type']], $r + ['padding' => 4, 'yearly_reset' => true]);

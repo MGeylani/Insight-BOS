@@ -34,6 +34,7 @@ class Attachments
         'quote' => [Quote::class, 'crm'],
         'task' => [Task::class, 'tasks'],
         'invoice' => [\App\Models\Invoice::class, 'finance'],
+        'expense' => [\App\Models\Expense::class, 'finance'],
     ];
 
     private const TEMP_DIR = 'attachment-uploads';
@@ -47,6 +48,10 @@ class Attachments
 
     public static function can(User $user, Model $owner, string $action): bool
     {
+        // Expense receipts: whoever sees the expense views them; its submitter (while pending), approvers and finance add or remove them.
+        if ($owner instanceof \App\Models\Expense) {
+            return $action === 'view' ? $owner->isVisibleTo($user) : \App\Services\Finance\Expenses::canAttach($user, $owner);
+        }
         $module = self::TYPES[$owner->getMorphClass()][1] ?? null;
 
         return $module !== null && $user->hasPermission("$module.$action") && $owner->isVisibleTo($user, "$module.$action");
