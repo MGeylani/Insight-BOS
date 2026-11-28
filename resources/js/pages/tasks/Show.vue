@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
-    Eye, EyeOff, Trash2, FolderInput, ListPlus, X, GitBranch, CalendarDays, Clock, Flag, Users, Tag as TagIcon, Milestone, CircleDot, History, Plus,
+    Repeat, Eye, EyeOff, Trash2, FolderInput, ListPlus, X, GitBranch, CalendarDays, Clock, Flag, Users, Tag as TagIcon, Milestone, CircleDot, History, Plus,
 } from '@lucide/vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Btn from '@/components/Btn.vue';
@@ -23,13 +23,15 @@ import { uploadAttachment } from '@/lib/upload';
 import TaskTimePanel from '@/components/tasks/TaskTimePanel.vue';
 import FieldValue from '@/components/tasks/FieldValue.vue';
 import TypeIcon from '@/components/tasks/TypeIcon.vue';
+import TaskDependencies from '@/components/tasks/TaskDependencies.vue';
+import RecurrencePicker from '@/components/tasks/RecurrencePicker.vue';
 import { typeIcons } from '@/lib/tasks';
 import ReminderButton from '@/components/tasks/ReminderButton.vue';
 import { formatDateTime } from '@/lib/format';
 import { patchTask, dateParams, minutesLabel, parseMinutes, keep } from '@/lib/tasks';
 
 const props = defineProps({
-    task: Object, comments: Array, files: Object, time: Object, reminders: { type: Array, default: () => [] }, activity: Array, statuses: Array, milestones: Array, moveLists: Array, linkLists: Array,
+    task: Object, dependencies: { type: Object, default: () => ({ waiting_on: [], blocking: [], links: [] }) }, comments: Array, files: Object, time: Object, reminders: { type: Array, default: () => [] }, activity: Array, statuses: Array, milestones: Array, moveLists: Array, linkLists: Array,
     priorities: Object, groups: Object, users: Array, tags: Array, can: Object,
     types: { type: Array, default: () => [] }, customFields: { type: Array, default: () => [] }, fieldValues: { type: Object, default: () => ({}) },
 });
@@ -150,6 +152,8 @@ const childCan = computed(() => ({ ...props.can, create: props.can.create && t.v
                             <dd><input v-model="estimate" class="w-28 rounded-md border border-transparent px-1 py-0.5 text-sm hover:border-slate-200 focus:border-brand focus:outline-none" placeholder="مثل 2س 30د" :readonly="!can.edit" @blur="saveEstimate" @keydown.enter="$event.target.blur()" /></dd></div>
                         <div class="flex items-center gap-3"><dt class="flex w-24 shrink-0 items-center gap-1.5 text-slate-500"><TagIcon class="size-4" /> الوسوم</dt>
                             <dd><TagPicker :model-value="t.tags.map((x) => x.id)" :tags="tags" :editable="can.edit" :can-create="can.edit" @update:model-value="(v) => set({ tags: v })" /></dd></div>
+                        <div class="flex items-center gap-3"><dt class="flex w-24 shrink-0 items-center gap-1.5 text-slate-500"><Repeat class="size-4" /> التكرار</dt>
+                            <dd><RecurrencePicker :model-value="t.recurrence" :label="t.recurrence_label" :editable="can.edit" @update:model-value="(v) => set({ recurrence: v })" /></dd></div>
                         <div v-if="milestones.length" class="flex items-center gap-3"><dt class="flex w-24 shrink-0 items-center gap-1.5 text-slate-500"><Milestone class="size-4" /> المرحلة</dt>
                             <dd><select :value="t.milestone_id ?? ''" class="rounded-md border-0 bg-transparent py-0.5 text-sm hover:bg-slate-50" :disabled="!can.edit" @change="set({ project_milestone_id: $event.target.value || null })">
                                 <option value="">—</option><option v-for="m in milestones" :key="m.id" :value="m.id">{{ m.title }}</option></select></dd></div>
@@ -193,6 +197,8 @@ const childCan = computed(() => ({ ...props.can, create: props.can.create && t.v
             </div>
 
             <div class="space-y-6">
+                <TaskDependencies :task-id="t.id" :deps="dependencies" :editable="can.edit" />
+
                 <TaskTimePanel :task="t" :time="time" :can-track="can.track" />
 
                 <div v-if="reminders.length" class="card p-5 text-sm">

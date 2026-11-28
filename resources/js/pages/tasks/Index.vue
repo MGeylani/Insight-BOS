@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
-    Plus, Pencil, Trash2, Palette, ListPlus, Settings2, Shapes, List, Columns3, CalendarDays, Table2, Bookmark, BookmarkPlus, Download, Users2, Lock, SlidersHorizontal, Check,
+    Plus, Pencil, Trash2, Palette, ListPlus, Settings2, Shapes, List, Columns3, CalendarDays, Table2, Bookmark, BookmarkPlus, Download, Users2, Lock, SlidersHorizontal, Check, ChartGantt,
 } from '@lucide/vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Btn from '@/components/Btn.vue';
@@ -19,6 +19,7 @@ import ListFormModal from '@/components/tasks/ListFormModal.vue';
 import NewTaskModal from '@/components/tasks/NewTaskModal.vue';
 import SaveViewModal from '@/components/tasks/SaveViewModal.vue';
 import FieldsManager from '@/components/tasks/FieldsManager.vue';
+import TaskGanttView from '@/components/tasks/TaskGanttView.vue';
 import { groupLabels, sortLabels, columnLabels } from '@/lib/tasks';
 
 const props = defineProps({
@@ -38,6 +39,7 @@ const types = [
     { key: 'board', label: 'لوحة', icon: Columns3 },
     { key: 'calendar', label: 'تقويم', icon: CalendarDays },
     { key: 'table', label: 'جدول', icon: Table2 },
+    { key: 'gantt', label: 'Gantt', icon: ChartGantt },
 ];
 const v = computed(() => props.view);
 
@@ -188,12 +190,13 @@ const menuItem = 'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm 
                     :list-id="listId" :show-location="loc?.type !== 'list'" :group-by="v.group" :types="types" :custom-fields="customFields" selectable :selected="selected" @toggle-select="toggleSelect" @select-many="selectMany" />
                 <TaskBoardView v-else-if="v.view === 'board'" :tasks="tasks" :statuses="statuses" :users="users" :tags="tags" :priorities="priorities" :can="can"
                     :list-id="listId" :group-by="v.group === 'none' || v.group === 'list' ? 'status' : v.group" :manual="v.sort === 'manual'" :types="types" :custom-fields="customFields" />
+                <TaskGanttView v-else-if="v.view === 'gantt'" :tasks="tasks" :can="can" :types="types" />
                 <TaskCalendarView v-else-if="v.view === 'calendar'" :tasks="tasks" :can="can" :list-id="listId" :date-field="v.date" />
                 <TaskTableView v-else :tasks="tasks" :statuses="statuses" :users="users" :tags="tags" :priorities="priorities" :can="can"
                     :columns="v.columns" :sort="v.sort" :dir="v.dir" :types="types" :custom-fields="customFields" :selected="selected" @toggle-select="toggleSelect" @select-many="selectMany"
                     @sort="(s, d) => go({ view: { sort: s, dir: d } })" />
 
-                <div v-if="!tasks.length && v.view !== 'calendar' && v.view !== 'board'" class="card mt-4 p-10 text-center text-sm text-slate-500">
+                <div v-if="!tasks.length && !['calendar', 'board', 'gantt'].includes(v.view)" class="card mt-4 p-10 text-center text-sm text-slate-500">
                     لا توجد مهام هنا<template v-if="Object.keys(filters).length"> تطابق الفلاتر</template>.
                 </div>
             </section>

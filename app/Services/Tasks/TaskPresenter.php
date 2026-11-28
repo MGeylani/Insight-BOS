@@ -28,8 +28,13 @@ class TaskPresenter
             ->when(empty($query->getQuery()->orders), fn ($q) => $q->orderBy('tasks.position')->orderBy('tasks.id'))
             ->limit($limit)->get();
         $values = CustomFields::valuesFor($tasks);
+        $deps = Dependencies::forTasks($tasks->pluck('id'));
 
-        return $tasks->map(fn (Task $t) => self::row($t) + ['fields' => (object) ($values[$t->id] ?? [])]);
+        return $tasks->map(fn (Task $t) => self::row($t) + [
+            'fields' => (object) ($values[$t->id] ?? []),
+            'waiting_on' => $deps[$t->id]['waiting_on'] ?? [],
+            'blocked' => $deps[$t->id]['blocked'] ?? false,
+        ]);
     }
 
     /** @return array<string, mixed> */
@@ -55,6 +60,8 @@ class TaskPresenter
             'completed' => $t->completed_at !== null,
             'completed_at' => $t->completed_at?->toIso8601String(),
             'estimate' => $t->time_estimate_min,
+            'recurrence' => $t->recurrence,
+            'recurrence_label' => $t->recurrence ? Recurrence::label($t->recurrence) : null,
             'assignees' => $t->assignees->map->only('id', 'name')->values(),
             'tags' => $t->tags->map->only('id', 'name', 'color')->values(),
             'children_count' => (int) ($t->children_count ?? 0),
