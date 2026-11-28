@@ -125,7 +125,9 @@ const dueGroups = [
  * Split rows into groups for list and board views.
  * Each group: { key, label, color, rows, drop(task) -> patch payload | null (not droppable), status? }
  */
-export function groupTasks(rows, by, { statuses = [], users = [], priorities = {} } = {}) {
+export function groupTasks(rows, by, { statuses = [], users = [], priorities = {}, types = [], customFields = [] } = {}) {
+    const extra = groupTasksExtra(rows, by, { types, customFields });
+    if (extra) return extra;
     if (by === 'status') {
         const names = statuses.map((s) => s.name);
         const extra = [...new Map(rows.filter((t) => t.status && !names.includes(t.status.name)).map((t) => [t.status.name, t.status])).values()];
@@ -162,4 +164,62 @@ export function groupTasks(rows, by, { statuses = [], users = [], priorities = {
         return lists.map((l) => ({ key: `l:${l.id}`, label: l.name, color: '#0082F6', rows: rows.filter((t) => t.list_id === l.id), drop: null }));
     }
     return [{ key: 'all', label: 'كل المهام', color: '#00027C', rows, drop: null }];
+}
+
+// ---- Task types and custom fields ----
+import {
+    CircleCheck, Diamond, Package, Camera, Megaphone, Users, PenTool, Video, FileText, Calendar, Bug, Lightbulb, Phone, Printer,
+    Clapperboard, Image, Mail, Flag, Star, Rocket,
+} from '@lucide/vue';
+
+export const typeIcons = {
+    'circle-check': CircleCheck, diamond: Diamond, package: Package, camera: Camera, megaphone: Megaphone, users: Users, 'pen-tool': PenTool,
+    video: Video, 'file-text': FileText, calendar: Calendar, bug: Bug, lightbulb: Lightbulb, phone: Phone, printer: Printer,
+    clapperboard: Clapperboard, image: Image, mail: Mail, flag: Flag, star: Star, rocket: Rocket,
+};
+columnLabels.type = 'النوع';
+groupLabels.type = 'النوع';
+
+export const fieldTypeLabels = {
+    text: 'نص', number: 'رقم', money: 'مبلغ', dropdown: 'قائمة منسدلة', labels: 'تسميات', date: 'تاريخ', checkbox: 'مربع اختيار',
+    people: 'أشخاص', url: 'رابط', rating: 'تقييم', percent: 'نسبة', file: 'ملف', formula: 'صيغة',
+};
+
+/** Plain-text display of a custom field value. */
+export function fieldText(f, v, users = []) {
+    if (v === null || v === undefined || v === '' || (Array.isArray(v) && !v.length)) return '';
+    const choice = (id) => f.options?.choices?.find((c) => c.id === id)?.label ?? id;
+    switch (f.type) {
+        case 'dropdown': return choice(v);
+        case 'labels': return v.map(choice).join('، ');
+        case 'checkbox': return v ? '✓' : '';
+        case 'people': return v.map((id) => users.find((u) => u.id === id)?.name ?? '؟').join('، ');
+        case 'money': return `${Number(v).toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${f.options?.currency ?? 'USD'}`;
+        case 'percent': return `${v}%`;
+        case 'rating': return '★'.repeat(v);
+        case 'formula': return Number(v).toLocaleString('en', { maximumFractionDigits: 2 });
+        case 'date': return dueLabel(v);
+        case 'file': return `${v.length} ملف`;
+        default: return String(v);
+    }
+}
+
+/** Group by task type or a dropdown custom field (extends groupTasks). */
+export function groupTasksExtra(rows, by, { types = [], customFields = [] } = {}) {
+    if (by === 'type') {
+        return [
+            ...types.map((t) => ({ key: `t:${t.id}`, label: t.name, color: t.color, rows: rows.filter((r) => r.type_id === t.id), drop: () => ({ task_type_id: t.id }) })),
+            { key: 't:none', label: 'بلا نوع', color: '#94a3b8', rows: rows.filter((r) => !r.type_id || !types.some((t) => t.id === r.type_id)), drop: null },
+        ];
+    }
+    const m = /^cf:(\d+)$/.exec(by ?? '');
+    const f = m && customFields.find((x) => x.id === Number(m[1]));
+    if (f && f.type === 'dropdown') {
+        const val = (r) => r.fields?.[f.id];
+        return [
+            ...(f.options.choices ?? []).map((c) => ({ key: `c:${c.id}`, label: c.label, color: c.color, rows: rows.filter((r) => val(r) === c.id), fieldDrop: { field: f.id, value: c.id } })),
+            { key: 'c:none', label: `بلا ${f.name}`, color: '#94a3b8', rows: rows.filter((r) => !val(r)), fieldDrop: { field: f.id, value: null } },
+        ];
+    }
+    return null;
 }

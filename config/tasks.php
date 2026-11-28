@@ -24,6 +24,16 @@ return [
         'closed' => 'مغلقة',
     ],
 
+    // Task types created by TaskSeeder (once, by name). The first is the default.
+    'types' => [
+        ['name' => 'مهمة', 'icon' => 'circle-check', 'color' => '#0082F6', 'is_milestone' => false],
+        ['name' => 'معلم', 'icon' => 'diamond', 'color' => '#481C4E', 'is_milestone' => true],
+        ['name' => 'مخرَج للعميل', 'icon' => 'package', 'color' => '#00027C', 'is_milestone' => false],
+        ['name' => 'جلسة تصوير', 'icon' => 'camera', 'color' => '#b45309', 'is_milestone' => false],
+        ['name' => 'منشور', 'icon' => 'megaphone', 'color' => '#864690', 'is_milestone' => false],
+        ['name' => 'اجتماع', 'icon' => 'users', 'color' => '#047857', 'is_milestone' => false],
+    ],
+
     'internal_client' => [
         'name' => 'Insight Media',
         'prefix' => 'INS',

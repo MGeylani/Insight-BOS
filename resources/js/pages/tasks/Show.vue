@@ -21,6 +21,9 @@ import RichView from '@/components/RichView.vue';
 import AttachmentsPanel from '@/components/AttachmentsPanel.vue';
 import { uploadAttachment } from '@/lib/upload';
 import TaskTimePanel from '@/components/tasks/TaskTimePanel.vue';
+import FieldValue from '@/components/tasks/FieldValue.vue';
+import TypeIcon from '@/components/tasks/TypeIcon.vue';
+import { typeIcons } from '@/lib/tasks';
 import ReminderButton from '@/components/tasks/ReminderButton.vue';
 import { formatDateTime } from '@/lib/format';
 import { patchTask, dateParams, minutesLabel, parseMinutes, keep } from '@/lib/tasks';
@@ -28,6 +31,7 @@ import { patchTask, dateParams, minutesLabel, parseMinutes, keep } from '@/lib/t
 const props = defineProps({
     task: Object, comments: Array, files: Object, time: Object, reminders: { type: Array, default: () => [] }, activity: Array, statuses: Array, milestones: Array, moveLists: Array, linkLists: Array,
     priorities: Object, groups: Object, users: Array, tags: Array, can: Object,
+    types: { type: Array, default: () => [] }, customFields: { type: Array, default: () => [] }, fieldValues: { type: Object, default: () => ({}) },
 });
 const page = usePage();
 const t = computed(() => props.task);
@@ -68,6 +72,8 @@ const move = (l) => router.post(`/tasks/${t.value.id}/move`, { task_list_id: l.i
 const link = (l) => router.post(`/tasks/${t.value.id}/lists`, { task_list_id: l.id }, keep);
 const unlink = (l) => router.delete(`/tasks/${t.value.id}/lists/${l.id}`, keep);
 const archive = () => confirm(`أرشفة المهمة ${t.value.code}${t.value.children.length ? ' ومهامها الفرعية' : ''}؟`) && router.delete(`/tasks/${t.value.id}`);
+const setField = (f, value) => router.put(`/tasks/${t.value.id}/fields/${f.id}`, { value }, keep);
+const currentType = computed(() => props.types.find((x) => x.id === t.value.type_id));
 const childCan = computed(() => ({ ...props.can, create: props.can.create && t.value.depth < 2 }));
 </script>
 
@@ -81,6 +87,18 @@ const childCan = computed(() => ({ ...props.can, create: props.can.create && t.v
         </nav>
 
         <div class="mb-6 flex flex-wrap items-start gap-3">
+            <Dropdown :disabled="!can.edit" width="w-52">
+                <template #trigger>
+                    <button type="button" class="mt-1.5 flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold disabled:cursor-default" :disabled="!can.edit" :style="{ color: currentType?.color }">
+                        <component :is="typeIcons[currentType?.icon] ?? typeIcons['circle-check']" class="size-4" /> {{ currentType?.name ?? 'مهمة' }}
+                    </button>
+                </template>
+                <template #default="{ close }">
+                    <button v-for="ty in types" :key="ty.id" type="button" class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50" @click="set({ task_type_id: ty.id }); close()">
+                        <component :is="typeIcons[ty.icon]" class="size-4" :style="{ color: ty.color }" /> {{ ty.name }}
+                    </button>
+                </template>
+            </Dropdown>
             <span class="num mt-2 rounded-md bg-slate-100 px-2 py-0.5 text-sm font-semibold text-slate-500" dir="ltr">{{ t.code }}</span>
             <textarea v-model="title" rows="1" class="min-w-0 flex-1 resize-none rounded-xl border border-transparent bg-transparent px-2 py-1 text-2xl font-bold text-navy outline-none [field-sizing:content] hover:border-slate-200 focus:border-brand"
                 :readonly="!can.edit" @blur="saveTitle" @keydown.enter.prevent="$event.target.blur()" />
@@ -138,6 +156,16 @@ const childCan = computed(() => ({ ...props.can, create: props.can.create && t.v
                     </dl>
                 </div>
 
+                <div v-if="customFields.length" class="card p-5">
+                    <h3 class="mb-3 font-semibold text-navy">الحقول</h3>
+                    <dl class="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+                        <div v-for="f in customFields" :key="f.id" class="flex items-center gap-3">
+                            <dt class="w-28 shrink-0 truncate text-slate-500" :title="f.name">{{ f.name }}</dt>
+                            <dd class="min-w-0 flex-1"><FieldValue :field="f" :value="fieldValues[f.id] ?? null" :users="users" :files="files?.items ?? []" :editable="can.edit" @save="(v) => setField(f, v)" /></dd>
+                        </div>
+                    </dl>
+                </div>
+
                 <div class="card p-5">
                     <h3 class="mb-2 font-semibold text-navy">الوصف</h3>
                     <RichEditor v-if="can.edit" v-model="description" :users="users" :uploader="uploader" placeholder="الموجز والتفاصيل والروابط… @ للإشارة، والصق الصور مباشرة" @blur="saveDescription" @error="(e) => (descError = e)" />
@@ -152,7 +180,7 @@ const childCan = computed(() => ({ ...props.can, create: props.can.create && t.v
                         <span v-if="t.progress.total" class="num text-xs text-slate-500">{{ t.progress.percent }}%</span>
                         <Btn v-if="childCan.create" size="sm" variant="secondary" @click="addingSub = true"><Plus class="size-4" /> مهمة فرعية</Btn>
                     </div>
-                    <TaskRow v-for="c in t.children" :key="c.id" :task="c" :statuses="statuses" :users="users" :tags="tags" :priorities="priorities" :can="{ ...can, create: false }" />
+                    <TaskRow v-for="c in t.children" :key="c.id" :task="c" :statuses="statuses" :users="users" :tags="tags" :priorities="priorities" :types="types" :can="{ ...can, create: false }" />
                     <QuickAdd v-if="addingSub" :parent-id="t.id" autofocus placeholder="مهمة فرعية… (Enter للحفظ)" @done="addingSub = false" />
                     <p v-if="!t.children.length && !addingSub" class="px-5 py-4 text-sm text-slate-500">لا توجد مهام فرعية.</p>
                 </div>

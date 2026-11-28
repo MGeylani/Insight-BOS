@@ -7,11 +7,13 @@ import PriorityPicker from './PriorityPicker.vue';
 import PeoplePicker from './PeoplePicker.vue';
 import DueInput from './DueInput.vue';
 import TagPicker from './TagPicker.vue';
+import TypeIcon from './TypeIcon.vue';
 import { patchTask, dateParams, minutesLabel } from '@/lib/tasks';
 
 defineOptions({ name: 'TaskRow' });
 const props = defineProps({
     task: Object, statuses: Array, users: Array, tags: Array, priorities: Object, can: Object,
+    types: { type: Array, default: () => [] },
     level: { type: Number, default: 0 }, showLocation: Boolean, selected: { type: Array, default: () => [] }, selectable: Boolean,
 });
 const emit = defineEmits(['add-subtask', 'toggle-select']);
@@ -40,6 +42,7 @@ const toggleDone = () => {
                 <CircleCheck v-if="task.completed" class="size-4 text-emerald-600" />
                 <Circle v-else class="size-4 text-slate-300 hover:text-emerald-600" />
             </button>
+            <TypeIcon :types="types" :type-id="task.type_id" />
             <Link :href="`/tasks/${task.id}`" class="min-w-0 truncate font-medium hover:text-brand" :class="task.completed ? 'text-slate-400 line-through' : 'text-slate-800'">{{ task.title }}</Link>
             <span class="num shrink-0 text-[11px] text-slate-400" dir="ltr">{{ task.code }}</span>
             <span v-if="task.children_count" class="flex shrink-0 items-center gap-0.5 text-[11px] text-slate-400" title="مهام فرعية"><GitBranch class="size-3" /><span class="num">{{ task.children_done }}/{{ task.children_count }}</span></span>
@@ -55,7 +58,7 @@ const toggleDone = () => {
         <div class="num hidden w-14 shrink-0 text-xs text-slate-500 sm:block">{{ minutesLabel(task.estimate) }}</div>
     </div>
     <template v-if="open">
-        <TaskRow v-for="c in task.children" :key="c.id" :task="c" :statuses="statuses" :users="users" :tags="tags" :priorities="priorities" :can="can"
+        <TaskRow v-for="c in task.children" :key="c.id" :task="c" :statuses="statuses" :users="users" :tags="tags" :priorities="priorities" :can="can" :types="types"
             :level="level + 1" :show-location="false" :selected="selected" :selectable="selectable" @add-subtask="(t) => emit('add-subtask', t)" @toggle-select="(id) => emit('toggle-select', id)">
             <template #after="s"><slot name="after" v-bind="s" /></template>
         </TaskRow>

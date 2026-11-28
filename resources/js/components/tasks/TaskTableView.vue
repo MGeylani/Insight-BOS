@@ -8,15 +8,22 @@ import PeoplePicker from './PeoplePicker.vue';
 import DueInput from './DueInput.vue';
 import PriorityPicker from './PriorityPicker.vue';
 import TagPicker from './TagPicker.vue';
+import FieldValue from './FieldValue.vue';
+import TypeIcon from './TypeIcon.vue';
+import { router } from '@inertiajs/vue3';
 import { patchTask, dateParams, minutesLabel, parseMinutes, columnLabels } from '@/lib/tasks';
 import { formatDate } from '@/lib/format';
 
 const props = defineProps({
     tasks: Array, statuses: Array, users: Array, tags: Array, priorities: Object, can: Object,
     columns: Array, sort: String, dir: String, selected: { type: Array, default: () => [] },
+    types: { type: Array, default: () => [] }, customFields: { type: Array, default: () => [] },
 });
 const emit = defineEmits(['toggle-select', 'select-many', 'sort']);
-const sortable = { due: 'due', priority: 'priority', created: 'created', title: 'title' };
+const sortable = new Proxy({ due: 'due', priority: 'priority', created: 'created', title: 'title' }, { get: (o, k) => (typeof k === 'string' && k.startsWith('cf:') ? k : o[k]) });
+const cf = (c) => (c.startsWith('cf:') ? props.customFields.find((f) => f.id === Number(c.slice(3))) : null);
+const label = (c) => cf(c)?.name ?? columnLabels[c] ?? c;
+const setField = (t, f, v) => router.put(`/tasks/${t.id}/fields/${f.id}`, { value: v }, { preserveScroll: true, preserveState: true });
 const editingTitle = ref(null);
 const titleDraft = ref('');
 const allSelected = () => props.tasks.length && props.tasks.every((t) => props.selected.includes(t.id));
@@ -35,7 +42,7 @@ const sortBy = (col) => sortable[col] && emit('sort', sortable[col], props.sort 
                     <th class="px-2 py-2 text-start font-medium"><button type="button" class="flex items-center gap-1 hover:text-navy" @click="sortBy('title')">المهمة <ArrowUp v-if="sort === 'title' && dir === 'asc'" class="size-3" /><ArrowDown v-else-if="sort === 'title'" class="size-3" /></button></th>
                     <th v-for="c in columns" :key="c" class="whitespace-nowrap px-2 py-2 text-start font-medium">
                         <button type="button" class="flex items-center gap-1" :class="sortable[c] ? 'hover:text-navy' : 'cursor-default'" @click="sortBy(c)">
-                            {{ columnLabels[c] }} <ArrowUp v-if="sort === sortable[c] && dir === 'asc'" class="size-3" /><ArrowDown v-else-if="sortable[c] && sort === sortable[c]" class="size-3" />
+                            {{ label(c) }} <ArrowUp v-if="sort === sortable[c] && dir === 'asc'" class="size-3" /><ArrowDown v-else-if="sortable[c] && sort === sortable[c]" class="size-3" />
                         </button>
                     </th>
                 </tr>
@@ -46,12 +53,19 @@ const sortBy = (col) => sortable[col] && emit('sort', sortable[col], props.sort 
                     <td class="max-w-[22rem] px-2 py-1.5" :style="{ paddingInlineStart: 8 + t.depth * 16 + 'px' }">
                         <input v-if="editingTitle === t.id" v-model="titleDraft" class="field-input py-1 text-sm" autofocus @blur="saveTitle(t)" @keydown.enter="$event.target.blur()" @keydown.esc="editingTitle = null" />
                         <div v-else class="flex items-center gap-1.5" @dblclick="startTitle(t)">
+                            <TypeIcon :types="types" :type-id="t.type_id" />
                             <span class="num shrink-0 text-[11px] text-slate-400" dir="ltr">{{ t.code }}</span>
                             <Link :href="`/tasks/${t.id}`" class="truncate font-medium hover:text-brand" :class="t.completed ? 'text-slate-400 line-through' : 'text-slate-800'">{{ t.title }}</Link>
                         </div>
                     </td>
                     <td v-for="c in columns" :key="c" class="whitespace-nowrap px-2 py-1.5">
-                        <StatusPill v-if="c === 'status'" :status="t.status" :statuses="statuses" :editable="can?.edit" @change="(s) => patchTask(t.id, { status_id: s.id })" />
+                        <template v-if="cf(c)">
+                            <FieldValue :field="cf(c)" :value="t.fields?.[cf(c).id] ?? null" :users="users" :editable="can?.edit && cf(c).type !== 'file'" compact @save="(v) => setField(t, cf(c), v)" />
+                        </template>
+                        <select v-else-if="c === 'type'" :value="t.type_id ?? ''" class="rounded border-0 bg-transparent py-0 text-xs" :disabled="!can?.edit" @change="patchTask(t.id, { task_type_id: Number($event.target.value) })">
+                            <option v-for="ty in types" :key="ty.id" :value="ty.id">{{ ty.name }}</option>
+                        </select>
+                        <StatusPill v-else-if="c === 'status'" :status="t.status" :statuses="statuses" :editable="can?.edit" @change="(s) => patchTask(t.id, { status_id: s.id })" />
                         <PeoplePicker v-else-if="c === 'assignees'" :model-value="t.assignees.map((u) => u.id)" :users="users" :editable="can?.assign" @update:model-value="(v) => patchTask(t.id, { assignees: v })" />
                         <DueInput v-else-if="c === 'due'" :model-value="t.due" :overdue="t.overdue" :editable="can?.edit" placeholder="" @update:model-value="(v) => patchTask(t.id, dateParams('due', v))" />
                         <DueInput v-else-if="c === 'start'" :model-value="t.start" :editable="can?.edit" placeholder="" @update:model-value="(v) => patchTask(t.id, dateParams('start', v))" />

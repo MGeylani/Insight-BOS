@@ -8,6 +8,7 @@ use App\Models\Tag;
 use App\Models\Task;
 use App\Models\TaskList;
 use App\Models\TaskStatus;
+use App\Models\TaskType;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -22,10 +23,13 @@ class TaskPresenter
 
     public static function rows(Builder $query, int $limit = 1000): Collection
     {
-        return $query->with(self::ROW_WITH)
+        $tasks = $query->with(self::ROW_WITH)
             ->withCount(['children', 'children as children_done' => fn ($q) => $q->whereNotNull('completed_at'), 'comments'])
             ->when(empty($query->getQuery()->orders), fn ($q) => $q->orderBy('tasks.position')->orderBy('tasks.id'))
-            ->limit($limit)->get()->map(fn (Task $t) => self::row($t));
+            ->limit($limit)->get();
+        $values = CustomFields::valuesFor($tasks);
+
+        return $tasks->map(fn (Task $t) => self::row($t) + ['fields' => (object) ($values[$t->id] ?? [])]);
     }
 
     /** @return array<string, mixed> */
@@ -36,6 +40,7 @@ class TaskPresenter
             'code' => $t->code(),
             'title' => $t->title,
             'parent_id' => $t->parent_id,
+            'type_id' => $t->task_type_id,
             'depth' => $t->depth,
             'list_id' => $t->task_list_id,
             'list' => $t->list?->only('id', 'name'),
@@ -124,6 +129,7 @@ class TaskPresenter
             'groups' => config('tasks.status_groups'),
             'users' => User::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'tags' => Tag::orderBy('name')->get(['id', 'name', 'color']),
+            'types' => TaskType::with('fields:id')->orderBy('sort')->orderBy('id')->get()->map->toUi()->values(),
         ];
     }
 

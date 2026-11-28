@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
-    Plus, Pencil, Trash2, Palette, ListPlus, Settings2, List, Columns3, CalendarDays, Table2, Bookmark, BookmarkPlus, Download, Users2, Lock, SlidersHorizontal, Check,
+    Plus, Pencil, Trash2, Palette, ListPlus, Settings2, Shapes, List, Columns3, CalendarDays, Table2, Bookmark, BookmarkPlus, Download, Users2, Lock, SlidersHorizontal, Check,
 } from '@lucide/vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Btn from '@/components/Btn.vue';
@@ -18,12 +18,14 @@ import StatusEditor from '@/components/tasks/StatusEditor.vue';
 import ListFormModal from '@/components/tasks/ListFormModal.vue';
 import NewTaskModal from '@/components/tasks/NewTaskModal.vue';
 import SaveViewModal from '@/components/tasks/SaveViewModal.vue';
+import FieldsManager from '@/components/tasks/FieldsManager.vue';
 import { groupLabels, sortLabels, columnLabels } from '@/lib/tasks';
 
 const props = defineProps({
     tree: Array, location: Object, tasks: Array, statuses: Array, filters: Object, priorities: Object, groups: Object,
     users: Array, tags: Array, can: Object, schemeTemplates: Array, milestones: { type: Array, default: () => [] },
     view: Object, savedView: Object, savedViews: Array, columns: Array, lists: Array,
+    types: { type: Array, default: () => [] }, customFields: { type: Array, default: () => [] }, canManageFields: Boolean,
 });
 const page = usePage();
 const errors = computed(() => Object.values(page.props.errors ?? {}));
@@ -77,6 +79,10 @@ const listForm = ref(false);
 const editList = ref(null);
 const newTask = ref(false);
 const saveView = ref(false);
+const fieldsManager = ref(false);
+const allColumns = computed(() => [...props.columns, ...props.customFields.map((f) => `cf:${f.id}`)]);
+const colLabel = (c) => (c.startsWith('cf:') ? props.customFields.find((f) => `cf:${f.id}` === c)?.name : columnLabels[c]);
+const dropdownFields = computed(() => props.customFields.filter((f) => f.type === 'dropdown'));
 const openNewList = () => { editList.value = null; listForm.value = true; };
 const openEditList = () => { editList.value = loc.value; listForm.value = true; };
 const deleteList = () => confirm(`حذف القائمة «${loc.value.name}»؟ (تُحذف فقط إن كانت فارغة)`) && router.delete(`/tasks/lists/${loc.value.id}`);
@@ -116,9 +122,11 @@ const menuItem = 'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm 
                             <template #default="{ close }">
                                 <button type="button" :class="menuItem" @click="openEditList(); close()"><Pencil class="size-4" /> تعديل القائمة</button>
                                 <button type="button" :class="menuItem" @click="statusEditor = true; close()"><Palette class="size-4" /> الحالات</button>
+                                <button v-if="canManageFields" type="button" :class="menuItem" @click="fieldsManager = true; close()"><Shapes class="size-4" /> الحقول المخصصة</button>
                                 <button type="button" :class="menuItem + ' text-red-600 hover:bg-red-50'" @click="deleteList(); close()"><Trash2 class="size-4" /> حذف القائمة</button>
                             </template>
                         </Dropdown>
+                        <Btn v-if="canManageFields && loc?.type !== 'list'" variant="secondary" title="الحقول المخصصة" @click="fieldsManager = true"><Shapes class="size-4" /></Btn>
                         <Btn v-if="can.create" @click="newTask = true"><Plus class="size-4" /> مهمة</Btn>
                     </div>
                 </div>
@@ -141,18 +149,20 @@ const menuItem = 'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm 
                                 <label v-if="v.view === 'list' || v.view === 'board'" class="block"><span class="mb-1 block text-xs text-slate-500">التجميع حسب</span>
                                     <select :value="v.group" class="field-input py-1.5" @change="go({ view: { group: $event.target.value } })">
                                         <option v-for="(l, k) in groupLabels" v-show="!(v.view === 'board' && (k === 'none' || k === 'list'))" :key="k" :value="k">{{ l }}</option>
+                                        <option v-for="f in dropdownFields" :key="f.id" :value="`cf:${f.id}`">{{ f.name }}</option>
                                     </select></label>
                                 <label v-if="v.view !== 'calendar'" class="block"><span class="mb-1 block text-xs text-slate-500">الترتيب</span>
                                     <div class="flex gap-1">
-                                        <select :value="v.sort" class="field-input py-1.5" @change="go({ view: { sort: $event.target.value } })"><option v-for="(l, k) in sortLabels" :key="k" :value="k">{{ l }}</option></select>
+                                        <select :value="v.sort" class="field-input py-1.5" @change="go({ view: { sort: $event.target.value } })"><option v-for="(l, k) in sortLabels" :key="k" :value="k">{{ l }}</option>
+                                            <option v-for="f in customFields.filter((x) => x.type !== 'formula')" :key="f.id" :value="`cf:${f.id}`">{{ f.name }}</option></select>
                                         <select :value="v.dir" class="field-input w-24 py-1.5" @change="go({ view: { dir: $event.target.value } })"><option value="asc">تصاعدي</option><option value="desc">تنازلي</option></select>
                                     </div></label>
                                 <label v-if="v.view === 'calendar'" class="block"><span class="mb-1 block text-xs text-slate-500">الوضع على التقويم حسب</span>
                                     <select :value="v.date" class="field-input py-1.5" @change="go({ view: { date: $event.target.value } })"><option value="due">تاريخ التسليم</option><option value="start">تاريخ البدء</option></select></label>
                                 <label class="flex items-center gap-2"><input type="checkbox" class="rounded" :checked="v.subtasks" @change="go({ view: { subtasks: $event.target.checked } })" /> إظهار المهام الفرعية</label>
                                 <div v-if="v.view === 'table'"><span class="mb-1 block text-xs text-slate-500">الأعمدة</span>
-                                    <button v-for="c in columns" :key="c" type="button" class="flex w-full items-center gap-2 rounded px-1 py-1 hover:bg-slate-50" @click="toggleColumn(c)">
-                                        <Check class="size-3.5" :class="v.columns.includes(c) ? 'text-brand' : 'text-transparent'" /> {{ columnLabels[c] }}
+                                    <button v-for="c in allColumns" :key="c" type="button" class="flex w-full items-center gap-2 rounded px-1 py-1 hover:bg-slate-50" @click="toggleColumn(c)">
+                                        <Check class="size-3.5" :class="v.columns.includes(c) ? 'text-brand' : 'text-transparent'" /> {{ colLabel(c) }}
                                     </button></div>
                             </div>
                         </Dropdown>
@@ -171,16 +181,16 @@ const menuItem = 'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm 
 
                 <div v-if="errors.length" class="mb-4 rounded-2xl bg-red-50 p-4 text-sm text-red-800"><p v-for="e in errors" :key="e">{{ e }}</p></div>
 
-                <TaskFilters :filters="filters" :users="users" :priorities="priorities" :tags="tags" :statuses="statuses" @change="(f) => go({ filters: f })" />
+                <TaskFilters :filters="filters" :users="users" :priorities="priorities" :tags="tags" :statuses="statuses" :types="types" :custom-fields="customFields" @change="(f) => go({ filters: f })" />
                 <p class="-mt-2 mb-3 text-xs text-slate-500"><span class="num">{{ top }}</span> مهمة<template v-if="tasks.length >= 1000"> (يُعرض أول 1000؛ ضيّق الفلاتر)</template></p>
 
                 <TaskListView v-if="v.view === 'list'" :tasks="tasks" :statuses="statuses" :users="users" :tags="tags" :priorities="priorities" :can="can"
-                    :list-id="listId" :show-location="loc?.type !== 'list'" :group-by="v.group" selectable :selected="selected" @toggle-select="toggleSelect" @select-many="selectMany" />
+                    :list-id="listId" :show-location="loc?.type !== 'list'" :group-by="v.group" :types="types" :custom-fields="customFields" selectable :selected="selected" @toggle-select="toggleSelect" @select-many="selectMany" />
                 <TaskBoardView v-else-if="v.view === 'board'" :tasks="tasks" :statuses="statuses" :users="users" :tags="tags" :priorities="priorities" :can="can"
-                    :list-id="listId" :group-by="v.group === 'none' || v.group === 'list' ? 'status' : v.group" :manual="v.sort === 'manual'" />
+                    :list-id="listId" :group-by="v.group === 'none' || v.group === 'list' ? 'status' : v.group" :manual="v.sort === 'manual'" :types="types" :custom-fields="customFields" />
                 <TaskCalendarView v-else-if="v.view === 'calendar'" :tasks="tasks" :can="can" :list-id="listId" :date-field="v.date" />
                 <TaskTableView v-else :tasks="tasks" :statuses="statuses" :users="users" :tags="tags" :priorities="priorities" :can="can"
-                    :columns="v.columns" :sort="v.sort" :dir="v.dir" :selected="selected" @toggle-select="toggleSelect" @select-many="selectMany"
+                    :columns="v.columns" :sort="v.sort" :dir="v.dir" :types="types" :custom-fields="customFields" :selected="selected" @toggle-select="toggleSelect" @select-many="selectMany"
                     @sort="(s, d) => go({ view: { sort: s, dir: d } })" />
 
                 <div v-if="!tasks.length && v.view !== 'calendar' && v.view !== 'board'" class="card mt-4 p-10 text-center text-sm text-slate-500">
@@ -193,6 +203,7 @@ const menuItem = 'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm 
         <StatusEditor v-if="loc?.type === 'list'" v-model="statusEditor" :statuses="statuses" :groups="groups" :url="`/tasks/lists/${loc.id}/statuses`" />
         <ListFormModal v-model="listForm" :list="editList" :client-id="newListClient" :project-id="newListProject" :milestones="milestones" :templates="schemeTemplates" />
         <NewTaskModal v-model="newTask" :tree="tree" :location="location" />
+        <FieldsManager v-if="canManageFields" v-model="fieldsManager" :fields="customFields" :types="types" :location="location" />
         <SaveViewModal v-model="saveView" :location="location" :view="view" :filters="filters" />
     </AppLayout>
 </template>

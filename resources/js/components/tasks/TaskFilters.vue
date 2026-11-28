@@ -1,9 +1,11 @@
 <script setup>
 // Filter bar shared by every view. Emits the full filter object on change.
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Search, X } from '@lucide/vue';
 
-const props = defineProps({ filters: Object, users: Array, priorities: Object, tags: Array, statuses: Array });
+const props = defineProps({ filters: Object, users: Array, priorities: Object, tags: Array, statuses: Array, types: { type: Array, default: () => [] }, customFields: { type: Array, default: () => [] } });
+const filterable = computed(() => props.customFields.filter((x) => ['dropdown', 'checkbox'].includes(x.type)));
+const setField = (id, value) => { f.value.fields = { ...(f.value.fields ?? {}) }; if (value === '') delete f.value.fields[id]; else f.value.fields[id] = value; changed(); };
 const emit = defineEmits(['change']);
 const f = ref({});
 watch(() => props.filters, (v) => (f.value = { search: '', due: '', ...JSON.parse(JSON.stringify(v ?? {})) }), { immediate: true, deep: true });
@@ -39,6 +41,14 @@ const active = () => Object.keys(props.filters ?? {}).length > 0;
         </select>
         <select v-if="tags.length" :value="first('tags')" class="field-input w-auto" @change="single('tags', $event.target.value)">
             <option value="">كل الوسوم</option><option v-for="t in tags" :key="t.id" :value="t.id">{{ t.name }}</option>
+        </select>
+        <select v-if="types.length > 1" :value="first('types')" class="field-input w-auto" @change="single('types', $event.target.value)">
+            <option value="">كل الأنواع</option><option v-for="t in types" :key="t.id" :value="t.id">{{ t.name }}</option>
+        </select>
+        <select v-for="cf in filterable" :key="cf.id" :value="f.fields?.[cf.id] ?? ''" class="field-input w-auto" @change="setField(cf.id, $event.target.value)">
+            <option value="">{{ cf.name }}: الكل</option>
+            <template v-if="cf.type === 'dropdown'"><option v-for="c in cf.options.choices" :key="c.id" :value="c.id">{{ c.label }}</option></template>
+            <template v-else><option value="1">{{ cf.name }}: نعم</option><option value="0">{{ cf.name }}: لا</option></template>
         </select>
         <label class="flex items-center gap-1.5 text-sm text-slate-600"><input v-model="f.closed" type="checkbox" class="rounded" @change="changed()" /> إظهار المكتملة</label>
         <button v-if="active()" type="button" class="flex items-center gap-1 text-xs text-slate-500 hover:text-red-600" @click="reset"><X class="size-3.5" /> مسح الفلاتر</button>

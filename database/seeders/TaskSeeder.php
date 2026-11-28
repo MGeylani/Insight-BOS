@@ -6,7 +6,7 @@ use App\Models\StatusScheme;
 use App\Services\Tasks\TaskLists;
 use Illuminate\Database\Seeder;
 
-/** Status templates (agency, simple) and the internal client "Insight Media". Idempotent. */
+/** Status templates (agency, simple), task types and the internal client "Insight Media". Idempotent. */
 class TaskSeeder extends Seeder
 {
     public function run(): void
@@ -21,6 +21,13 @@ class TaskSeeder extends Seeder
                     $scheme->statuses()->create($row + ['sort' => $i + 1]);
                 }
             }
+        }
+
+        foreach (config('tasks.types') as $i => $t) {
+            \App\Models\TaskType::firstOrCreate(['name' => $t['name']], $t + [
+                'sort' => $i + 1,
+                'is_default' => $i === 0 && ! \App\Models\TaskType::where('is_default', true)->exists(),
+            ]);
         }
 
         TaskLists::internalClient();

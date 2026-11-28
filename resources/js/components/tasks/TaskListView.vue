@@ -9,7 +9,7 @@ import { buildTree, groupTasks } from '@/lib/tasks';
 const props = defineProps({
     tasks: Array, statuses: Array, users: Array, tags: Array, priorities: Object, can: Object,
     listId: Number, showLocation: Boolean, selectable: Boolean, selected: { type: Array, default: () => [] },
-    groupBy: { type: String, default: 'status' },
+    groupBy: { type: String, default: 'status' }, types: { type: Array, default: () => [] }, customFields: { type: Array, default: () => [] },
 });
 const emit = defineEmits(['toggle-select', 'select-many']);
 const collapsed = reactive({});
@@ -42,7 +42,7 @@ const groupSelected = (g) => g.rows.length && allIds(g.rows).every((id) => props
                 <div class="hidden items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-3 py-1 text-[11px] text-slate-400 sm:flex">
                     <span v-if="selectable" class="w-3.5" /><span class="flex-1">الاسم</span><span class="w-28">الحالة</span><span class="w-20">المسؤول</span><span class="w-24">التسليم</span><span class="w-8">أولوية</span><span class="w-14">التقدير</span>
                 </div>
-                <TaskRow v-for="t in g.rows" :key="t.id" :task="t" :statuses="statuses" :users="users" :tags="tags" :priorities="priorities" :can="can"
+                <TaskRow v-for="t in g.rows" :key="t.id" :task="t" :statuses="statuses" :users="users" :tags="tags" :priorities="priorities" :can="can" :types="types"
                     :show-location="showLocation" :selectable="selectable" :selected="selected" @toggle-select="(id) => emit('toggle-select', id)" @add-subtask="(x) => (subFor = x.id)">
                     <template #after="{ task }">
                         <QuickAdd v-if="subFor === task.id" :parent-id="task.id" :indent="task.depth + 1" autofocus placeholder="مهمة فرعية… (Enter للحفظ)" @done="subFor = null" />

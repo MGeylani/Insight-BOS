@@ -8,11 +8,13 @@ import PeoplePicker from './PeoplePicker.vue';
 import DueInput from './DueInput.vue';
 import PriorityPicker from './PriorityPicker.vue';
 import QuickAdd from './QuickAdd.vue';
+import TypeIcon from './TypeIcon.vue';
 import { groupTasks, patchTask, dateParams, keep } from '@/lib/tasks';
 
 const props = defineProps({
     tasks: Array, statuses: Array, users: Array, tags: Array, priorities: Object, can: Object,
     listId: Number, groupBy: { type: String, default: 'status' }, manual: Boolean,
+    types: { type: Array, default: () => [] }, customFields: { type: Array, default: () => [] },
 });
 const cols = ref([]);
 watch(() => [props.tasks, props.groupBy, props.statuses], () => {
@@ -28,6 +30,7 @@ function onEnd(evt) {
     if (!id || !to) return;
     const task = props.tasks.find((t) => t.id === id);
     if (from?.key !== to.key) {
+        if (to.fieldDrop) { router.put(`/tasks/${id}/fields/${to.fieldDrop.field}`, { value: to.fieldDrop.value }, keep); return; }
         const payload = to.drop?.(task, from?.key);
         if (!payload) { router.reload({ only: ['tasks'] }); return; } // not a droppable column
         patchTask(id, payload);
@@ -55,6 +58,7 @@ function onEnd(evt) {
                 class="flex min-h-24 flex-1 flex-col gap-2 px-2 pb-3" @end="onEnd">
                 <div v-for="t in c.rows" :key="t.id" :data-task-id="t.id" class="cursor-grab rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition hover:shadow-md active:cursor-grabbing">
                     <div class="mb-1 flex items-center gap-1.5 text-[11px] text-slate-400">
+                        <TypeIcon :types="types" :type-id="t.type_id" />
                         <span class="num" dir="ltr">{{ t.code }}</span>
                         <span v-if="t.list && !listId" class="truncate">· {{ t.list.name }}</span>
                         <span v-if="groupBy !== 'status'" class="ms-auto rounded px-1.5 py-0.5 text-[10px] font-semibold text-white" :style="{ background: t.status?.color }">{{ t.status?.name }}</span>
