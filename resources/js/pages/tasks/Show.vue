@@ -20,11 +20,13 @@ import RichEditor from '@/components/RichEditor.vue';
 import RichView from '@/components/RichView.vue';
 import AttachmentsPanel from '@/components/AttachmentsPanel.vue';
 import { uploadAttachment } from '@/lib/upload';
+import TaskTimePanel from '@/components/tasks/TaskTimePanel.vue';
+import ReminderButton from '@/components/tasks/ReminderButton.vue';
 import { formatDateTime } from '@/lib/format';
 import { patchTask, dateParams, minutesLabel, parseMinutes, keep } from '@/lib/tasks';
 
 const props = defineProps({
-    task: Object, comments: Array, files: Object, activity: Array, statuses: Array, milestones: Array, moveLists: Array, linkLists: Array,
+    task: Object, comments: Array, files: Object, time: Object, reminders: { type: Array, default: () => [] }, activity: Array, statuses: Array, milestones: Array, moveLists: Array, linkLists: Array,
     priorities: Object, groups: Object, users: Array, tags: Array, can: Object,
 });
 const page = usePage();
@@ -83,6 +85,7 @@ const childCan = computed(() => ({ ...props.can, create: props.can.create && t.v
             <textarea v-model="title" rows="1" class="min-w-0 flex-1 resize-none rounded-xl border border-transparent bg-transparent px-2 py-1 text-2xl font-bold text-navy outline-none [field-sizing:content] hover:border-slate-200 focus:border-brand"
                 :readonly="!can.edit" @blur="saveTitle" @keydown.enter.prevent="$event.target.blur()" />
             <div class="flex items-center gap-2">
+                <ReminderButton :task-id="t.id" />
                 <Btn variant="secondary" size="sm" :title="t.watching ? 'إلغاء المتابعة' : 'متابعة'" @click="watch_">
                     <EyeOff v-if="t.watching" class="size-4" /><Eye v-else class="size-4" /> {{ t.watching ? 'تتابعها' : 'متابعة' }}
                 </Btn>
@@ -162,6 +165,16 @@ const childCan = computed(() => ({ ...props.can, create: props.can.create && t.v
             </div>
 
             <div class="space-y-6">
+                <TaskTimePanel :task="t" :time="time" :can-track="can.track" />
+
+                <div v-if="reminders.length" class="card p-5 text-sm">
+                    <h3 class="mb-2 font-semibold text-navy">تذكيراتي لهذه المهمة</h3>
+                    <p v-for="r in reminders" :key="r.id" class="flex items-center gap-2 text-xs" :class="r.sent ? 'text-amber-700' : 'text-slate-600'">
+                        <span class="num" dir="ltr">{{ r.remind_at.replace('T', ' ') }}</span><span class="truncate">{{ r.note }}</span>
+                        <button type="button" class="ms-auto text-slate-400 hover:text-red-600" @click="router.delete(`/reminders/${r.id}`, keep)"><X class="size-3.5" /></button>
+                    </p>
+                </div>
+
                 <div class="card p-5 text-sm">
                     <h3 class="mb-3 font-semibold text-navy">القوائم</h3>
                     <p class="mb-2 flex items-center gap-2"><span class="rounded bg-navy/5 px-1.5 text-[10px] text-navy">الأساسية</span><Link :href="`/tasks?list=${t.home.id}`" class="text-brand hover:underline">{{ t.home.name }}</Link></p>

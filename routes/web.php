@@ -27,6 +27,10 @@ use App\Http\Controllers\Settings\StorageController;
 use App\Http\Controllers\Tasks\ChecklistController;
 use App\Http\Controllers\Tasks\CommentController;
 use App\Http\Controllers\Tasks\SavedViewController;
+use App\Http\Controllers\Tasks\MyWorkController;
+use App\Http\Controllers\Tasks\ReminderController;
+use App\Http\Controllers\Tasks\TimeController;
+use App\Http\Controllers\InboxController;
 use App\Http\Controllers\Tasks\TaskController;
 use App\Http\Controllers\Tasks\TaskListController;
 use App\Http\Controllers\Tasks\TaskSettingsController;
@@ -59,6 +63,26 @@ Route::middleware('auth')->group(function () {
 
     Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('notifications/read', [NotificationController::class, 'read'])->name('notifications.read');
+    Route::post('notifications/unread', [InboxController::class, 'unread'])->name('notifications.unread');
+    Route::delete('notifications', [InboxController::class, 'destroy'])->name('notifications.destroy');
+    Route::get('inbox', [InboxController::class, 'index'])->name('inbox');
+
+    // My Work, reminders and time tracking.
+    Route::middleware('can:tasks.view')->group(function () {
+        Route::get('my-work', [MyWorkController::class, 'index'])->name('my-work');
+        Route::get('my-work/calendar', [MyWorkController::class, 'calendar'])->name('my-work.calendar');
+        Route::post('reminders', [ReminderController::class, 'store'])->name('reminders.store');
+        Route::patch('reminders/{reminder}', [ReminderController::class, 'update'])->name('reminders.update');
+        Route::delete('reminders/{reminder}', [ReminderController::class, 'destroy'])->name('reminders.destroy');
+    });
+    Route::middleware('can:tasks.track_time')->group(function () {
+        Route::get('my-work/time', [MyWorkController::class, 'time'])->name('my-work.time');
+        Route::post('timer/start', [TimeController::class, 'start'])->name('timer.start');
+        Route::post('timer/stop', [TimeController::class, 'stop'])->name('timer.stop');
+        Route::post('time-entries', [TimeController::class, 'store'])->name('time-entries.store');
+        Route::patch('time-entries/{entry}', [TimeController::class, 'update'])->name('time-entries.update');
+        Route::delete('time-entries/{entry}', [TimeController::class, 'destroy'])->name('time-entries.destroy');
+    });
 
     // CRM. Record-level checks (own / assigned / all) happen in the controllers.
     Route::prefix('crm')->name('crm.')->group(function () {

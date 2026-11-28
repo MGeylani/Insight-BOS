@@ -66,6 +66,7 @@ class UserController extends Controller
                 'is_active' => $user->is_active,
                 'is_super_admin' => $user->is_super_admin,
                 'role_template_id' => $user->role_template_id,
+                'hourly_cost' => request()->user()->hasPermission('hr.view_salaries') && $user->hourly_cost !== null ? (float) $user->hourly_cost : null,
                 'permissions' => (object) $user->permissionMap(),
             ],
         ]);
@@ -108,6 +109,7 @@ class UserController extends Controller
             'catalog' => Permissions::catalog(),
             'scopes' => config('permissions.scopes'),
             'templates' => RoleTemplate::orderBy('name')->get(['id', 'name', 'permissions']),
+            'canCost' => request()->user()->hasPermission('hr.view_salaries'),
         ];
     }
 
@@ -123,9 +125,14 @@ class UserController extends Controller
             'role_template_id' => ['nullable', 'exists:role_templates,id'],
             'permissions' => ['array'],
             'permissions.*' => ['string', Rule::in(array_keys(config('permissions.scopes')))],
+            'hourly_cost' => ['nullable', 'numeric', 'min:0', 'max:99999'],
         ]);
 
         $fields = collect($data)->only(['name', 'email', 'phone', 'is_active', 'role_template_id'])->all();
+        // The hourly cost is salary data: only people who may see salaries can set it.
+        if ($request->user()->hasPermission('hr.view_salaries') && $request->exists('hourly_cost')) {
+            $fields['hourly_cost'] = $data['hourly_cost'] ?? null;
+        }
         if (! empty($data['password'])) {
             $fields['password'] = $data['password'];
         }

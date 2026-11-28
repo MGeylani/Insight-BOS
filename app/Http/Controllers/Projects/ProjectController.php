@@ -139,6 +139,9 @@ class ProjectController extends Controller
                 'members' => $project->members->map(fn (User $m) => ['id' => $m->id, 'name' => $m->name, 'role' => $m->pivot->role])->values(),
                 'approved_cost' => $seeBudget ? round($approved->sum(fn ($c) => (float) $c->cost_impact), 2) : null,
                 'approved_days' => (int) $approved->sum('days_impact'),
+                // Logged hours feed the project's actual cost (minutes x the person's hourly cost, USD).
+                'time' => (fn ($t) => [...$t, 'cost' => $seeBudget ? $t['cost'] : null, 'uncosted_minutes' => $seeBudget ? $t['uncosted_minutes'] : null])(
+                    \App\Services\Tasks\TimeTracking::forProject($project)),
             ],
             'milestones' => $project->milestones->map(fn (ProjectMilestone $m) => [
                 ...$m->only('id', 'title', 'details', 'sort'),

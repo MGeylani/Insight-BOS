@@ -45,11 +45,13 @@ function go(n) {
                 <li v-for="n in items" :key="n.id">
                     <Link :href="n.data.url || '#'" class="block px-4 py-3 text-sm hover:bg-slate-50" :class="{ 'bg-sky/5': !n.read }" @click="go(n)">
                         <p :class="n.read ? 'text-slate-600' : 'font-semibold text-slate-800'">{{ n.data.title }}</p>
+                        <p v-if="n.data.body" class="mt-0.5 line-clamp-2 text-xs text-slate-500">{{ n.data.body }}</p>
                         <p class="mt-0.5 text-xs text-slate-400">{{ formatDateTime(n.created_at) }}</p>
                     </Link>
                 </li>
             </ul>
             <p v-else class="px-4 py-6 text-center text-sm text-slate-400">لا توجد تنبيهات.</p>
+            <Link href="/inbox" class="block border-t border-slate-100 px-4 py-2.5 text-center text-xs font-semibold text-brand hover:bg-slate-50" @click="open = false">صندوق الوارد</Link>
         </div>
     </div>
 </template>
