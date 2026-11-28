@@ -48,7 +48,7 @@ class TaskAutomationTest extends TestCase
         return Tasks::create($list ?? $this->list, $d + ['title' => 'مهمة '.uniqid()], $this->u);
     }
 
-    private function status(Task $t, string $name): int
+    private function statusId(Task $t, string $name): int
     {
         return $t->list->statuses()->where('name', $name)->value('id');
     }
@@ -139,14 +139,14 @@ class TaskAutomationTest extends TestCase
             'actions' => [['type' => 'notify', 'users' => ['creator'], 'message' => 'تجاوزت الجولات: {code}']]]);
 
         $t = $this->task(['title' => 'فيديو المعرض']);
-        Tasks::update($t, ['status_id' => $this->status($t, 'مراجعة داخلية')]);
+        Tasks::update($t, ['status_id' => $this->statusId($t, 'مراجعة داخلية')]);
         $review = $t->children()->first();
         $this->assertSame('مراجعة إبداعية: فيديو المعرض', $review->title);
         $this->assertSame([$cd->id], $review->assignees()->pluck('users.id')->all());
 
         foreach (range(1, 3) as $i) {
-            Tasks::update($t->fresh(), ['status_id' => $this->status($t, 'تعديلات')]);
-            Tasks::update($t->fresh(), ['status_id' => $this->status($t, 'قيد التنفيذ')]);
+            Tasks::update($t->fresh(), ['status_id' => $this->statusId($t, 'تعديلات')]);
+            Tasks::update($t->fresh(), ['status_id' => $this->statusId($t, 'قيد التنفيذ')]);
         }
         $this->assertEquals(3, $t->fieldValues()->where('custom_field_id', $rounds->id)->value('value'));
         $this->assertSame(1, $this->automationNotices($this->u)); // only once the third round passes the limit
@@ -165,7 +165,7 @@ class TaskAutomationTest extends TestCase
         $this->automation(['trigger' => 'status_changed', 'trigger_config' => ['to' => 'تعديلات'], 'actions' => [['type' => 'set_status', 'status' => 'مراجعة داخلية']]]);
         $this->automation(['trigger' => 'status_changed', 'trigger_config' => ['to' => 'مراجعة داخلية'], 'actions' => [['type' => 'set_status', 'status' => 'تعديلات']]]);
         $t = $this->task();
-        Tasks::update($t, ['status_id' => $this->status($t, 'تعديلات')]);
+        Tasks::update($t, ['status_id' => $this->statusId($t, 'تعديلات')]);
         $this->assertLessThanOrEqual(3, AutomationRun::count());
         $this->assertTrue(AutomationRun::where('status', 'ok')->exists());
     }
