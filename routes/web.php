@@ -26,6 +26,7 @@ use App\Http\Controllers\Settings\ServiceCategoryController;
 use App\Http\Controllers\Settings\StorageController;
 use App\Http\Controllers\Tasks\ChecklistController;
 use App\Http\Controllers\Tasks\CommentController;
+use App\Http\Controllers\Tasks\SavedViewController;
 use App\Http\Controllers\Tasks\TaskController;
 use App\Http\Controllers\Tasks\TaskListController;
 use App\Http\Controllers\Tasks\TaskSettingsController;
@@ -177,6 +178,11 @@ Route::middleware('auth')->group(function () {
     Route::prefix('tasks')->name('tasks.')->group(function () {
         Route::middleware('can:tasks.view')->group(function () {
             Route::get('/', [TaskController::class, 'index'])->name('index');
+            Route::get('export', [TaskController::class, 'export'])->name('export');
+            Route::post('views', [SavedViewController::class, 'store'])->name('views.store');
+            Route::put('views/{view}', [SavedViewController::class, 'update'])->name('views.update');
+            Route::delete('views/{view}', [SavedViewController::class, 'destroy'])->name('views.destroy');
+            Route::post('bulk', [TaskController::class, 'bulk'])->name('bulk');
             Route::get('{task}', [TaskController::class, 'show'])->whereNumber('task')->name('show');
             Route::post('{task}/watch', [TaskController::class, 'watch'])->name('watch');
             Route::post('{task}/comments', [CommentController::class, 'store'])->middleware('throttle:60,1')->name('comments.store');

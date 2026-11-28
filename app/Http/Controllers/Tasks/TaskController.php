@@ -13,7 +13,11 @@ use App\Models\TaskList;
 use App\Models\User;
 use App\Services\Storage\Attachments;
 use App\Services\Tasks\Comments;
+use App\Services\Tasks\BulkActions;
 use App\Services\Tasks\TaskLists;
+use App\Services\Tasks\ViewConfig;
+use App\Models\SavedView;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use App\Services\Tasks\TaskPresenter;
 use App\Services\Tasks\TaskQuery;
 use App\Services\Tasks\Tasks;
@@ -35,8 +39,21 @@ class TaskController extends Controller
             $list = TaskList::findOrFail($location['list']);
             abort_unless($list->isVisibleTo($user), 403);
         }
-        $filters = TaskQuery::clean($request->all());
-        $tasks = TaskPresenter::rows(TaskQuery::build($user, $location, $filters));
+        $saved = $request->integer('saved') ? SavedView::availableTo($user, $this->locType($location), $this->locId($location))->find($request->integer('saved')) : null;
+        // A saved view supplies the settings; anything in the URL overrides them (while adjusting a view).
+        if ($saved) {
+            $cfg = $saved->config ?? [];
+            $filters = TaskQuery::clean($request->hasAny(TaskQuery::FILTER_KEYS) ? $request->all() : ($cfg['filters'] ?? []));
+            $view = ViewConfig::clean(array_merge(['view' => $saved->type], $cfg, $request->only('view', 'group', 'sort', 'dir', 'columns', 'date', 'subtasks')));
+        } else {
+            $filters = TaskQuery::clean($request->all());
+            $view = ViewConfig::clean($request->all());
+        }
+        $query = TaskQuery::sort(TaskQuery::build($user, $location, $filters), $view['sort'], $view['dir']);
+        if (! $view['subtasks']) {
+            $query->whereNull('tasks.parent_id');
+        }
+        $tasks = TaskPresenter::rows($query);
 
         $listIds = ! empty($location['list']) ? collect([(int) $location['list']]) : $tasks->pluck('list_id')->unique();
         if (! empty($location['project'])) {
@@ -52,10 +69,64 @@ class TaskController extends Controller
             'tasks' => $tasks,
             'statuses' => TaskPresenter::statusesFor($listIds),
             'filters' => $filters,
+            'view' => $view,
+            'savedView' => $saved ? [...$saved->only('id', 'name', 'type', 'is_shared', 'location_type'), 'can_manage' => $saved->canManage($user)] : null,
+            'savedViews' => SavedView::availableTo($user, $this->locType($location), $this->locId($location))->with('owner:id,name')
+                ->orderBy('sort')->orderBy('id')->get()
+                ->map(fn (SavedView $v) => [...$v->only('id', 'name', 'type', 'is_shared', 'location_type'), 'owner' => $v->owner?->name, 'mine' => (int) $v->owner_id === $user->id])->values(),
+            'columns' => ViewConfig::COLUMNS,
+            'lists' => TaskList::visibleTo($user, 'tasks.create')->with(['client:id,name', 'project:id,name'])->orderBy('client_id')->orderBy('sort')->limit(500)->get()
+                ->map(fn ($l) => ['id' => $l->id, 'name' => $l->name, 'client_id' => $l->client_id, 'client' => $l->client?->name, 'project' => $l->project?->name])->values(),
             ...TaskPresenter::vocab(),
             'can' => $this->listCan($user, $location),
             'schemeTemplates' => StatusScheme::where('is_template', true)->orderByDesc('is_default')->get(['id', 'name']),
         ]);
+    }
+
+    /** The same change on many tasks (status, people, dates, tags, list, archive). */
+    public function bulk(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:500'],
+            'ids.*' => ['integer'],
+            'action' => ['required', Rule::in(array_keys(BulkActions::ACTIONS))],
+            'value' => ['nullable'],
+        ]);
+        $r = BulkActions::run($request->user(), array_map('intval', $data['ids']), $data['action'], $data['value'] ?? null);
+
+        return back()->with($r['done'] ? 'success' : 'error', "تم التطبيق على {$r['done']} مهمة".($r['skipped'] ? " (تخطّي {$r['skipped']} لا تملك صلاحيتها أو لا ينطبق عليها)" : '').'.');
+    }
+
+    /** CSV (Excel opens it) of the current view: same location, filters and sorting. */
+    public function export(Request $request): StreamedResponse
+    {
+        $user = $request->user();
+        $location = array_filter($request->only('list', 'project', 'client'));
+        $view = ViewConfig::clean($request->all());
+        $rows = TaskPresenter::rows(TaskQuery::sort(TaskQuery::build($user, $location, TaskQuery::clean($request->all())), $view['sort'], $view['dir']), 5000);
+        $priorities = config('tasks.priorities');
+        $head = ['المعرّف', 'العنوان', 'المهمة الأم', 'العميل', 'المشروع', 'القائمة', 'الحالة', 'الأولوية', 'المسؤولون', 'البدء', 'التسليم', 'التقدير (ساعة)', 'الوسوم', 'أُنشئت', 'اكتملت'];
+        $codes = $rows->pluck('code', 'id');
+        \App\Services\ActivityLogger::log('tasks.exported', null, 'تصدير '.count($rows).' مهمة');
+
+        return response()->streamDownload(function () use ($rows, $head, $priorities, $codes) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM so Excel shows Arabic correctly
+            fputcsv($out, $head);
+            foreach ($rows as $r) {
+                fputcsv($out, [
+                    $r['code'], $r['title'], $r['parent_id'] ? ($codes[$r['parent_id']] ?? '#'.$r['parent_id']) : '',
+                    $r['client']['name'] ?? '', $r['project']['name'] ?? '', $r['list']['name'] ?? '',
+                    $r['status']['name'] ?? '', $priorities[$r['priority']] ?? $r['priority'],
+                    collect($r['assignees'])->pluck('name')->implode('، '),
+                    str_replace('T', ' ', (string) $r['start']), str_replace('T', ' ', (string) $r['due']),
+                    $r['estimate'] ? round($r['estimate'] / 60, 2) : '',
+                    collect($r['tags'])->pluck('name')->implode('، '),
+                    substr((string) $r['created_at'], 0, 10), substr((string) $r['completed_at'], 0, 10),
+                ]);
+            }
+            fclose($out);
+        }, 'tasks-'.now()->format('Y-m-d').'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     public function show(Request $request, Task $task): Response
@@ -292,6 +363,24 @@ class TaskController extends Controller
             'tags' => ['sometimes', 'nullable', 'array', 'max:30'],
             'tags.*' => ['integer'],
         ];
+    }
+
+    private function locType(array $location): ?string
+    {
+        foreach (['list', 'project', 'client'] as $k) {
+            if (! empty($location[$k])) {
+                return $k;
+            }
+        }
+
+        return null;
+    }
+
+    private function locId(array $location): ?int
+    {
+        $t = $this->locType($location);
+
+        return $t ? (int) $location[$t] : null;
     }
 
     /** @return array<string, bool> */

@@ -93,6 +93,22 @@ class TaskQuery
         return $q;
     }
 
+    /** Order rows: manual (drag order) by default. */
+    public static function sort(Builder $q, string $sort, string $dir): Builder
+    {
+        $dir = $dir === 'desc' ? 'desc' : 'asc';
+        match ($sort) {
+            'due' => $q->orderByRaw('tasks.due_at is null')->orderBy('tasks.due_at', $dir),
+            'priority' => $q->orderByRaw("case tasks.priority when 'urgent' then 0 when 'high' then 1 when 'normal' then 2 else 3 end ".$dir),
+            'created' => $q->orderBy('tasks.created_at', $dir),
+            'updated' => $q->orderBy('tasks.updated_at', $dir),
+            'title' => $q->orderBy('tasks.title', $dir),
+            default => null,
+        };
+
+        return $q->orderBy('tasks.position')->orderBy('tasks.id');
+    }
+
     /** Clean filter input from a request or a saved view. @return array<string, mixed> */
     public static function clean(array $input): array
     {
