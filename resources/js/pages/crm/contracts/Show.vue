@@ -12,13 +12,14 @@ import Badge from '@/components/Badge.vue';
 import Modal from '@/components/Modal.vue';
 import Field from '@/components/Field.vue';
 import CrmTabs from '@/components/crm/CrmTabs.vue';
+import AttachmentsPanel from '@/components/AttachmentsPanel.vue';
 import { useAuth } from '@/lib/auth';
 import { formatDate, formatDateTime, formatNumber } from '@/lib/format';
 import { money, contractStatusTone, scheduleStatusTone } from '@/lib/crm';
 
 const props = defineProps({
     contract: Object, copies: Array, log: Array, statuses: Object, types: Object,
-    scheduleStatuses: Object, billingTimings: Object, oppStages: Object, project: Object,
+    scheduleStatuses: Object, billingTimings: Object, oppStages: Object, project: Object, files: Object,
 });
 const { can } = useAuth();
 const page = usePage();
@@ -204,6 +205,7 @@ const btnLink = 'inline-flex items-center gap-2 rounded-xl border border-slate-3
                         <div v-for="x in copies" :key="x.id" class="text-xs text-slate-500">نسخة لاحقة: <Link :href="`/crm/contracts/${x.id}`" class="text-brand hover:underline">{{ x.number ?? 'مسودة' }}</Link> ({{ statuses[x.status] }})</div>
                     </dl>
                 </div>
+                <AttachmentsPanel :files="files" title="النسخة الموقّعة والمرفقات" />
                 <div class="card p-5">
                     <h3 class="mb-3 font-semibold text-navy">السجل</h3>
                     <ol class="relative space-y-4 border-s border-slate-200 ps-4">
@@ -225,7 +227,7 @@ const btnLink = 'inline-flex items-center gap-2 rounded-xl border border-slate-3
                 <Field label="اسم الموقّع عن العميل" id="sg-name" :error="signForm.errors.client_signatory">
                     <input id="sg-name" v-model="signForm.client_signatory" class="field-input" />
                 </Field>
-                <p class="text-xs text-slate-500">يصبح العقد سارياً{{ c.opportunity ? '، وتنتقل الفرصة إلى «مكسوبة»' : '' }}. احفظ النسخة الموقّعة في ملفات العميل (يُفعَّل ربط التخزين لاحقاً في هذه المرحلة).</p>
+                <p class="text-xs text-slate-500">يصبح العقد سارياً{{ c.opportunity ? '، وتنتقل الفرصة إلى «مكسوبة»' : '' }}. بعدها ارفع النسخة الموقّعة من «النسخة الموقّعة والمرفقات» في هذه الصفحة.</p>
             </div>
             <template #footer>
                 <Btn variant="secondary" @click="signing = false">إلغاء</Btn>

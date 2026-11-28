@@ -35,4 +35,22 @@ return [
         ],
     ],
 
+    // Cloud storage apps (Settings > Cloud storage). Redirect URI to register with each provider:
+    //   {APP_URL}/settings/storage/callback/{google_drive|onedrive|dropbox}
+    'google_drive' => [
+        'client_id' => env('GOOGLE_DRIVE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_DRIVE_CLIENT_SECRET'),
+    ],
+
+    'onedrive' => [
+        'client_id' => env('ONEDRIVE_CLIENT_ID'),
+        'client_secret' => env('ONEDRIVE_CLIENT_SECRET'),
+        'tenant' => env('ONEDRIVE_TENANT', 'common'),
+    ],
+
+    'dropbox' => [
+        'client_id' => env('DROPBOX_APP_KEY'),
+        'client_secret' => env('DROPBOX_APP_SECRET'),
+    ],
+
 ];

@@ -10,11 +10,12 @@ import Modal from '@/components/Modal.vue';
 import Field from '@/components/Field.vue';
 import CrmTabs from '@/components/crm/CrmTabs.vue';
 import ContractList from '@/components/crm/ContractList.vue';
+import AttachmentsPanel from '@/components/AttachmentsPanel.vue';
 import { useAuth } from '@/lib/auth';
 import { formatDate, formatDateTime, formatNumber } from '@/lib/format';
 import { money, quoteStatusTone } from '@/lib/crm';
 
-const props = defineProps({ quote: Object, copies: Array, log: Array, statuses: Object, oppStages: Object, contracts: Array, contractStatuses: Object, project: Object });
+const props = defineProps({ quote: Object, copies: Array, log: Array, statuses: Object, oppStages: Object, contracts: Array, contractStatuses: Object, project: Object, files: Object });
 const { can } = useAuth();
 const page = usePage();
 const q = computed(() => props.quote);
@@ -145,6 +146,7 @@ const open = computed(() => ['sent', 'expired'].includes(q.value.status));
                     <span v-else class="font-medium text-slate-700">{{ project.number }} · {{ project.name }}</span>
                 </div>
                 <ContractList v-if="contracts.length" :contracts="contracts" :statuses="contractStatuses" />
+                <AttachmentsPanel :files="files" title="المرفقات" />
                 <div class="card p-5">
                     <h3 class="mb-3 font-semibold text-navy">السجل</h3>
                     <ol class="relative space-y-4 border-s border-slate-200 ps-4">

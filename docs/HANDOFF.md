@@ -6,7 +6,7 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 ## الحالة الحالية (2026-11-28)
 
 - **المرحلة 1 منتهية ومنشورة** على https://test.insightpromedia.com (Plesk، PHP 8.3، Laravel Toolkit يسحب فرع `deploy`).
-- **المرحلة 2: الخطوات 1–5 منتهية** (CRM + كتالوج الخدمات وعروض الأسعار + العقود، مع PDF + المشاريع ومساحة المشروع). التالي: **الخطوة 6 (ربط التخزين والمرفقات)**.
+- **المرحلة 2 منتهية برمجياً (الخطوات 1–6)**: CRM + الخدمات وعروض الأسعار + العقود (PDF) + المشاريع ومساحة المشروع + ربط التخزين والمرفقات. تبقى مفاتيح OAuth على الخادم (انظر `docs/DEPLOY.md`). التالي: **المرحلة 3أ (المهام)**.
 - CI: كل دفعة إلى `main` أو إلى فرع `phase-*` ← GitHub Actions يشغّل الاختبارات. فقط `main` ينشئ فرع `deploy` (vendor + public/build). **لا تعدّل `deploy` يدوياً.**
 - أسلوب العمل المعتمد: اعمل على فرع `phase-N-...`، ادفع، انتظر CI أخضر. **الدفع المباشر إلى `main` ممنوع من جلسة Claude**: المستخدم يدمج عبر Pull Request (أعطه رابط `https://github.com/MGeylani/Insight-BOS/compare/main...<branch>`)، ثم يشغّل `migrate --force` يدوياً من Laravel Toolkit إن لزم.
 - بيئة Claude السحابية لا تصل إلى Packagist: لا يمكن `composer install` محلياً. افحص PHP بـ `php -l`، وابنِ الواجهة بـ `npm ci && npm run build`، واعتمد على CI للاختبارات.
@@ -26,7 +26,7 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 - الأرقام: `App\Services\NumberSequencer::next('quote'|'invoice'|'receipt'|'expense'|'contract')` ← مثل `QT-2026-0001`. الرقم يُمنح عند الإصدار، والمستند يُلغى ولا يُحذف.
 - العملات: USD أساسية، SYP وTRY بسعر يومي يدوي. `App\Services\ExchangeRates::rateFor($code, $date)` (احفظ `currency` و`fx_rate` مع كل مستند مالي).
 - الضريبة: `service_categories.tax_rate` (0% حالياً) تُنسخ إلى البند لحظة الإصدار.
-- التخزين: مزود واحد نشط في `storage_connections` (google_drive | onedrive | dropbox | wd_mycloud)، الواجهة `App\Services\Storage\StorageProvider`. الملفات لا تُخزَّن على الخادم.
+- التخزين: مزود واحد نشط في `storage_connections` (google_drive | onedrive | dropbox | wd_mycloud)، الواجهة `App\Services\Storage\StorageProvider`. الملفات لا تُخزَّن على الخادم. المرفقات عبر `App\Services\Storage\Attachments` (انظر الخطوة 6).
 - المبالغ `DECIMAL(14,2)`، علاقات بالمعرّف لا بالاسم، Soft deletes، القيم المحسوبة لا تُخزَّن.
 - كل ميزة جديدة: اختبارات Feature في `tests/Feature`، وseeders idempotent.
 
@@ -64,7 +64,7 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 - PDF: `ContractPdf` + `resources/views/pdf/contract.php` (طرفان، نطاق العمل، المدة والمقابل، جدول الدفعات، المراحل، الشروط، خانتا توقيع). علامة مائية: مسودة / ملغى / مفسوخ. الرابط `/crm/contracts/{id}/pdf`.
 - الشروط الافتراضية لكل نوع في صفحة بيانات الشركة ← `PUT /settings/contract-defaults` (`contracts.terms_project`، `contracts.terms_retainer`).
 - الواجهات: `pages/crm/contracts/{Index,Edit,Show}.vue`، `components/crm/ContractList.vue` (في صفحات العميل والفرصة والعرض)، زر «إنشاء عقد» في صفحة العرض المُرسل/المقبول، تبويب «العقود» في `CrmTabs`.
-- النسخة الموقّعة من العقد تُرفع لاحقاً كمرفق (الخطوة 6).
+- النسخة الموقّعة من العقد تُرفع من بطاقة «النسخة الموقّعة والمرفقات» في صفحة العقد.
 
 ## ما بُني في المشاريع (المرحلة 2، الخطوة 5)
 
@@ -78,6 +78,19 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 - الواجهات: `pages/projects/{Index,Form,Show}.vue`؛ مساحة المشروع بتبويبات (الملخص، المراحل، المخاطر والمشكلات، طلبات التغيير، الملفات) والتبويب يُحفظ في `#hash`. المكونات في `components/projects/*` (`MilestonesPanel`، `RisksIssuesPanel`، `ChangesPanel`، `ProjectList` لصفحة العميل). الألوان في `lib/projects.js`. عناصر المساحة تُرسل بـ `preserveState` كي لا يضيع التبويب.
 - `authorizeRecord()` انتقل إلى `App\Http\Controllers\Controller` ليستخدمه أي موديول.
 - **للمرحلة 3أ (المهام):** المهام تتبع `project_id` و`project_milestone_id`؛ عندها يُحسب تقدم المرحلة من مهامها بدل الإنجاز اليدوي.
+
+## ما بُني في التخزين والمرفقات (المرحلة 2، الخطوة 6)
+
+- الجداول (`2026_11_28_000500_create_attachments_tables.php`): `attachments` (morph `attachable`، المزود، `external_id`، الرابط، الحالة `pending | uploaded | failed`، الخطأ، عدد المحاولات، `temp_path`) و`storage_folders` (معرّفات مجلدات المزود لكل اتصال ومفتاح: `root`، `client:5`، `client:5:contracts`، `client:5:quotes`، `project:3`).
+- المشغّلات في `app/Services/Storage/Drivers`: `Driver` (أساس: مهلة، تحويل الأخطاء إلى `StorageException` مع `status`، `cleanName`) ← `OAuthDriver` (رابط الموافقة، تبادل الرمز، تجديد الرمز تلقائياً وحفظه مشفّراً) ← `GoogleDrive` (نطاق `drive.file`، رفع resumable، الحذف = سلة المحذوفات، يدعم Shared Drives)، `OneDrive` (Graph، جلسة رفع بأجزاء 10MiB، `conflictBehavior=rename`)، `Dropbox` (مسارات، رفع مباشر حتى 140MiB ثم upload session، ترويسة `Dropbox-API-Arg` بـ ASCII). و`WebDav` (Basic auth، MKCOL/PUT/DELETE، يتجنب الكتابة فوق ملف بنفس الاسم بإضافة «(2)»، والفتح بالبث عبر BOS لأن الجهاز بلا عارض ويب).
+- الواجهة `StorageProvider`: `test()` (يعيد اسم الحساب)، `rootFolder()`، `ensureChild($parentId, $name)`، `upload($localPath, $name, $mime, $folderId)`، `delete($externalId)`. `Providers::driver($connection)` يبني المشغّل؛ `Providers::forUi()` لصفحة الإعدادات (هل المفاتيح موجودة، رابط إعادة التوجيه).
+- `StorageManager::folderFor($connection, $record)` يبني الهيكل ويتذكره: `Insight BOS/العملاء/<اسم العميل #id>/{العقود، عروض الأسعار، المشاريع/<PRJ-… · الاسم>}`. المجلد يُتذكر لكل سجل، فتغيير الاسم لا ينشئ مجلداً جديداً. إن ردّ المزود بـ 404 تُنسى المجلدات وتُنشأ في المحاولة التالية.
+- `Attachments` المصدر الوحيد: `store` (يتحقق من الربط والنوع والحجم، نسخة مؤقتة على القرص `local` في `attachment-uploads/`، صف `pending`، محاولة فورية)، `attempt` (نجاح ← تُحذف النسخة المؤقتة؛ فشل ← `failed` + الخطأ + عداد المحاولات)، `delete` (من المزود ثم soft delete)، `retryFailed` (الأمر `storage:retry` كل 10 دقائق، حتى `Attachment::MAX_AUTO_ATTEMPTS` = 5، وزر «إعادة المحاولة» بلا حد)، `payload($record, $user)` لكل صفحة.
+- الأنواع التي تقبل مرفقات في `Attachments::TYPES`: `client`، `project`، `contract`، `quote` (أضف غيرها هنا + فرعاً في `StorageManager::folderFor`). الصلاحيات تتبع السجل نفسه: العرض/الفتح بـ `<module>.view`، الرفع والحذف وإعادة المحاولة بـ `<module>.edit` مع نطاق السجل.
+- المسارات: `POST /attachments` (`type`، `id`، `files[]`)، `GET /attachments/{id}/open` (تحويل إلى رابط المزود، أو بث لـ WebDAV)، `POST /attachments/{id}/retry`، `DELETE /attachments/{id}`. الإعدادات: `/settings/storage/{connect,callback}/{provider}` (state في الجلسة)، `POST /settings/storage/{webdav,test,disconnect,retry}`. الفصل يمسح الرموز ومجلدات الذاكرة (الملفات تبقى في الخدمة، وإعادة الربط تجد المجلدات بالاسم).
+- المفاتيح في `config/services.php` (`google_drive`، `onedrive` + `tenant`، `dropbox`) من `.env` (انظر `.env.example` و`docs/DEPLOY.md`).
+- الواجهة: `components/AttachmentsPanel.vue` (سحب وإفلات، عدة ملفات، شريط تقدم، فتح، إعادة محاولة، حذف) في: تبويب «الملفات» بالمشروع، صفحة العميل، صفحة العقد («النسخة الموقّعة والمرفقات»)، صفحة العرض. `settings/Storage.vue` فيه الربط والاختبار والفصل ونموذج WebDAV وعدد الملفات المعلّقة.
+- الاختبارات: `StorageDriversTest` (كل مشغّل مقابل API محاكاة بـ `Http::fake`) و`AttachmentTest` (المسار الكامل مقابل خادم WebDAV محاكى + ربط OAuth).
 
 ## نطاق المرحلة 2 (العملاء والمشاريع والعقود + ربط التخزين)
 
@@ -109,7 +122,7 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 3. ~~الخدمات وعروض الأسعار + PDF.~~ ✅
 4. ~~العقود.~~ ✅
 5. ~~المشاريع ومساحة المشروع.~~ ✅
-6. ربط التخزين والمرفقات.
+6. ~~ربط التخزين والمرفقات.~~ ✅
 
 ## قرارات تحتاج مراجعة
 
@@ -124,4 +137,14 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 6. **عدّاد جولات التعديل** المذكور مع طلبات التغيير مؤجل إلى التسليمات وبوابة المراجعة (المرحلة 6)؛ طلب التغيير الآن يحمل أثر التكلفة والوقت فقط.
 7. عرض الميزانية مقصور على من لديه `projects.manage_budget` أو `projects.approve_changes` أو `finance.view`؛ أعضاء الفريق العاديون لا يرونها.
 8. أرشفة المشروع (soft delete) لا تفك ربطه بالعرض/العقد، فلا يمكن إنشاء مشروع جديد من نفس العرض بعد أرشفة مشروعه.
+
+**الخطوة 6 (التخزين والمرفقات):**
+1. **Google Drive بنطاق `drive.file`** (لا يرى إلا ما أنشأه النظام) بدل الوصول لكل الـ Drive. أأمن، لكن الملفات التي تُضاف يدوياً إلى مجلدات BOS من Drive لا تظهر في النظام (النظام لا يقرأ المجلدات أصلاً حالياً).
+2. **الرفع متزامن داخل الطلب** (لا Queue worker على Plesk)، مع نسخة مؤقتة على الخادم حتى ينجح الرفع، وإعادة محاولة تلقائية كل 10 دقائق (5 مرات) ثم يدوياً. الملفات الكبيرة جداً تحتاج رفع حدود PHP (انظر DEPLOY).
+3. **الحذف من BOS يحذف من الخدمة** (Google: سلة المحذوفات، OneDrive: سلة المحذوفات، Dropbox: قابل للاسترجاع، WebDAV: حذف نهائي). إن كان الاتصال مفصولاً يُحذف من BOS فقط.
+4. **WD My Cloud عبر WebDAV**: الملف يُفتح ببثه عبر خادم BOS (لا رابط مباشر). أجهزة My Cloud الحديثة (OS 5) قد لا تدعم WebDAV أصلاً؛ إن كان جهازكم منها فالخيار العملي أحد المزودين السحابيين.
+5. أسماء المجلدات عربية (`العملاء`، `المشاريع`، `العقود`، `عروض الأسعار`) ومجلد العميل `<الاسم> #<id>` لتفادي تكرار الأسماء.
+6. المرفقات مفعّلة الآن على العملاء والمشاريع والعقود وعروض الأسعار فقط (الفرص والمحتملون بلا مجلد عميل ثابت).
+7. تغيير المزود لا ينقل الملفات القديمة: تبقى مرتبطة بخدمتها وتُفتح منها، والجديدة تذهب للمزود الجديد.
+8. عرض الملفات يتبع صلاحية «عرض» السجل، والرفع والحذف يتبعان «تعديل» السجل (لا صلاحية منفصلة للملفات).
 

@@ -13,6 +13,7 @@ use App\Services\ActivityLogger;
 use App\Services\ExchangeRates;
 use App\Services\Sales\QuotePdf;
 use App\Services\Sales\Quotes;
+use App\Services\Storage\Attachments;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
@@ -135,6 +136,7 @@ class QuoteController extends CrmController
             'contracts' => $this->contractList($quote->contracts(), $user),
             'contractStatuses' => config('crm.contract_statuses'),
             'project' => $this->projectLink($quote->project_id, $user),
+            'files' => Attachments::payload($quote, $user),
             'log' => $log->map(fn ($l) => [
                 'id' => $l->id, 'action' => $l->action, 'description' => $l->description,
                 'user' => $l->user?->name, 'created_at' => $l->created_at?->toIso8601String(),

@@ -12,12 +12,13 @@ import Badge from '@/components/Badge.vue';
 import MilestonesPanel from '@/components/projects/MilestonesPanel.vue';
 import RisksIssuesPanel from '@/components/projects/RisksIssuesPanel.vue';
 import ChangesPanel from '@/components/projects/ChangesPanel.vue';
+import AttachmentsPanel from '@/components/AttachmentsPanel.vue';
 import { formatDate, formatDateTime } from '@/lib/format';
 import { money, usd } from '@/lib/crm';
 import { projectStatusTone, daysLabel, riskLevelTone } from '@/lib/projects';
 
 const props = defineProps({
-    project: Object, milestones: Array, risks: Array, issues: Array, changes: Array, log: Array, can: Object,
+    project: Object, milestones: Array, risks: Array, issues: Array, changes: Array, log: Array, can: Object, files: Object,
     types: Object, statuses: Object, memberRoles: Array, riskLevels: Object, riskCategories: Object, riskStatuses: Object,
     issueSeverities: Object, issueStatuses: Object, changeSources: Object, changeStatuses: Object, users: Array,
 });
@@ -30,7 +31,7 @@ const tabs = computed(() => [
     { key: 'milestones', label: 'المراحل', icon: Flag, count: props.milestones.length },
     { key: 'risks', label: 'المخاطر والمشكلات', icon: ShieldAlert, count: openIssues.value.length || null },
     { key: 'changes', label: 'طلبات التغيير', icon: GitPullRequestArrow, count: pendingChanges.value.length || null },
-    { key: 'files', label: 'الملفات', icon: FolderOpen },
+    { key: 'files', label: 'الملفات', icon: FolderOpen, count: props.files.items.length || null },
 ]);
 const initial = typeof window !== 'undefined' ? window.location.hash.slice(1) : '';
 const tab = ref(['summary', 'milestones', 'risks', 'changes', 'files'].includes(initial) ? initial : 'summary');
@@ -141,11 +142,7 @@ const destroy = () => confirm(`أرشفة المشروع ${p.value.name}؟`) && 
                 <ChangesPanel v-else-if="tab === 'changes'" :project-id="p.id" :currency="p.currency" :changes="changes" :can-edit="can.edit" :can-approve="can.approve"
                     :see-budget="can.see_budget" :change-sources="changeSources" :change-statuses="changeStatuses" />
 
-                <div v-else-if="tab === 'files'" class="card p-8 text-center">
-                    <FolderOpen class="mx-auto mb-3 size-8 text-slate-300" />
-                    <p class="font-semibold text-slate-700">ملفات المشروع</p>
-                    <p class="mt-1 text-sm text-slate-500">تُرفع الملفات إلى خدمة التخزين المربوطة في مجلد خاص بالمشروع.</p>
-                </div>
+                <AttachmentsPanel v-else-if="tab === 'files'" :files="files" title="ملفات المشروع" hint="تُحفظ في مجلد المشروع داخل مجلد العميل" />
             </div>
 
             <div class="space-y-6">

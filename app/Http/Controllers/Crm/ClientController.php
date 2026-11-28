@@ -6,6 +6,7 @@ use App\Models\Client;
 use App\Models\Opportunity;
 use App\Services\ActivityLogger;
 use App\Services\Crm\DuplicateFinder;
+use App\Services\Storage\Attachments;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -84,6 +85,7 @@ class ClientController extends CrmController
             'contractStatuses' => config('crm.contract_statuses'),
             'projects' => $this->projectList($client, $request->user()),
             'projectStatuses' => config('projects.statuses'),
+            'files' => Attachments::payload($client, $request->user()),
             'stats' => [
                 'won_total' => round($won->sum(fn ($o) => $o->amountInBase() ?? 0), 2),
                 'won_count' => $won->count(),

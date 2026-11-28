@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class StorageConnection extends Model
 {
@@ -27,5 +28,10 @@ class StorageConnection extends Model
     public static function active(): ?self
     {
         return static::where('is_active', true)->first();
+    }
+
+    public function storageFolders(): HasMany
+    {
+        return $this->hasMany(StorageFolder::class);
     }
 }
