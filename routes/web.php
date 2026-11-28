@@ -54,6 +54,7 @@ use App\Http\Controllers\Finance\VendorController;
 use App\Http\Controllers\Finance\AdvanceController;
 use App\Http\Controllers\Finance\ReimbursementController;
 use App\Http\Controllers\Finance\BudgetController;
+use App\Http\Controllers\Finance\FinanceReportController;
 use Illuminate\Support\Facades\Route;
 
 // Intake forms: public ones open without signing in; internal ones send guests to the login page.
@@ -266,6 +267,9 @@ Route::middleware('auth')->group(function () {
         Route::post('vendor-payments/{payment}/allocate', [VendorController::class, 'allocate'])->name('vendor-payments.allocate');
         Route::post('vendor-payments/{payment}/reverse', [VendorController::class, 'reversePayment'])->name('vendor-payments.reverse');
         Route::middleware('can:finance.view')->group(function () {
+            Route::get('/', [FinanceReportController::class, 'dashboard'])->name('dashboard');
+            Route::get('reports', [FinanceReportController::class, 'index'])->name('reports');
+            Route::get('reports/xlsx', [FinanceReportController::class, 'export'])->name('reports.xlsx');
             Route::get('vendors', [VendorController::class, 'index'])->name('vendors.index');
             Route::get('vendors/{vendor}', [VendorController::class, 'show'])->name('vendors.show');
         });
