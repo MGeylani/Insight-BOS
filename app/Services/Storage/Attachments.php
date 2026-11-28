@@ -85,7 +85,8 @@ class Attachments
             ->where('attachable_type', $owner->getMorphClass())->where('attachable_id', $owner->getKey())
             ->latest('id')->get()
             ->map(fn (Attachment $a) => [
-                ...$a->only('id', 'name', 'size', 'mime', 'status', 'provider', 'attempts'),
+                ...$a->only('id', 'name', 'size', 'mime', 'status', 'provider', 'attempts', 'version'),
+                'proofable' => $owner->getMorphClass() === 'task' && $a->isProofable(),
                 'error' => $a->status === 'failed' ? $a->error : null,
                 'uploader' => $a->uploader?->name,
                 'created_at' => $a->created_at?->toIso8601String(),

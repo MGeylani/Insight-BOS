@@ -30,6 +30,8 @@ use App\Http\Controllers\Tasks\CustomFieldController;
 use App\Http\Controllers\Tasks\DependencyController;
 use App\Http\Controllers\Tasks\WorkloadController;
 use App\Http\Controllers\Tasks\AutomationController;
+use App\Http\Controllers\Tasks\IntakeFormController;
+use App\Http\Controllers\Tasks\ProofController;
 use App\Http\Controllers\Tasks\TemplateController;
 use App\Http\Controllers\Tasks\TimesheetController;
 use App\Http\Controllers\Tasks\TaskTypeController;
@@ -42,6 +44,10 @@ use App\Http\Controllers\Tasks\TaskController;
 use App\Http\Controllers\Tasks\TaskListController;
 use App\Http\Controllers\Tasks\TaskSettingsController;
 use Illuminate\Support\Facades\Route;
+
+// Intake forms: public ones open without signing in; internal ones send guests to the login page.
+Route::get('forms/{token}', [IntakeFormController::class, 'show'])->name('forms.show');
+Route::post('forms/{token}', [IntakeFormController::class, 'submit'])->middleware('throttle:10,1')->name('forms.submit');
 
 Route::middleware('guest')->group(function () {
     Route::get('login', [LoginController::class, 'create'])->name('login');
@@ -218,6 +224,13 @@ Route::middleware('auth')->group(function () {
             Route::get('lookup', [DependencyController::class, 'lookup'])->name('lookup');
             Route::get('workload', [WorkloadController::class, 'index'])->name('workload');
             Route::get('automations', [AutomationController::class, 'index'])->name('automations');
+            Route::get('forms', [IntakeFormController::class, 'index'])->name('forms');
+            Route::get('forms/fields', [IntakeFormController::class, 'fields'])->name('forms.fields');
+            Route::get('{task}/proof/{attachment}', [ProofController::class, 'show'])->whereNumber('task')->name('proof');
+            Route::post('proof/{attachment}/comments', [ProofController::class, 'comment'])->middleware('throttle:60,1')->name('proof.comment');
+            Route::patch('proof-comments/{comment}', [ProofController::class, 'update'])->name('proof.update');
+            Route::delete('proof-comments/{comment}', [ProofController::class, 'destroy'])->name('proof.destroy');
+            Route::post('proof/{attachment}/version', [ProofController::class, 'version'])->name('proof.version');
             Route::put('workload/capacity/{person}', [WorkloadController::class, 'capacity'])->name('workload.capacity');
             Route::post('time-off', [WorkloadController::class, 'storeTimeOff'])->name('time-off.store');
             Route::delete('time-off/{timeOff}', [WorkloadController::class, 'destroyTimeOff'])->name('time-off.destroy');
@@ -262,6 +275,9 @@ Route::middleware('auth')->group(function () {
             Route::put('automations/{automation}', [AutomationController::class, 'update'])->name('automations.update');
             Route::delete('automations/{automation}', [AutomationController::class, 'destroy'])->name('automations.destroy');
             Route::post('templates', [TemplateController::class, 'store'])->name('templates.store');
+            Route::post('forms', [IntakeFormController::class, 'store'])->name('forms.store');
+            Route::put('forms/{form}', [IntakeFormController::class, 'update'])->name('forms.update');
+            Route::delete('forms/{form}', [IntakeFormController::class, 'destroy'])->name('forms.destroy');
             Route::delete('templates/{template}', [TemplateController::class, 'destroy'])->name('templates.destroy');
             Route::delete('dependencies/{dependency}', [DependencyController::class, 'destroy'])->name('dependencies.destroy');
         });

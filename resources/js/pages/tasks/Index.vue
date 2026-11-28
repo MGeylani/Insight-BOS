@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
-    Plus, Pencil, Trash2, Palette, ListPlus, Settings2, Shapes, List, Columns3, CalendarDays, Table2, Bookmark, BookmarkPlus, Download, Users2, Lock, SlidersHorizontal, Check, ChartGantt, LayoutTemplate, Zap,
+    Plus, Pencil, Trash2, Palette, ListPlus, Settings2, Shapes, List, Columns3, CalendarDays, Table2, Bookmark, BookmarkPlus, Download, Users2, Lock, SlidersHorizontal, Check, ChartGantt, LayoutTemplate, Zap, FileInput,
 } from '@lucide/vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Btn from '@/components/Btn.vue';
@@ -143,6 +143,7 @@ const menuItem = 'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm 
                                 <button v-if="can.create || can.new_list" type="button" :class="menuItem" @click="openTpl('apply'); close()"><LayoutTemplate class="size-4" /> إنشاء من قالب</button>
                                 <button v-if="tplSource" type="button" :class="menuItem" @click="openTpl('save'); close()"><BookmarkPlus class="size-4" /> حفظ {{ loc.type === 'list' ? 'القائمة' : 'قوائم المشروع' }} كقالب</button>
                                 <Link v-if="canManageFields" :href="automationsUrl" :class="menuItem"><Zap class="size-4" /> الأتمتة</Link>
+                                <Link href="/tasks/forms" :class="menuItem"><FileInput class="size-4" /> نماذج الاستقبال</Link>
                             </template>
                         </Dropdown>
                         <Btn v-if="can.create" @click="newTask = true"><Plus class="size-4" /> مهمة</Btn>

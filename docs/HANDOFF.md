@@ -13,7 +13,7 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
   2. `phase-3b-deps` ← الاعتماديات والروابط، عرض Gantt، المهام المتكررة ✅
   3. `phase-3b-workload` ← ضغط العمل (سعة الموظف)، الخط الزمني للفريق، جداول الساعات الأسبوعية واعتمادها ✅
   4. `phase-3b-automation` ← القوالب (مهمة، قائمة، مشروع) والأتمتة (مُشغِّل ← شرط ← إجراء) + الأتمتة الجاهزة للوكالة ✅
-  5. `phase-3b-intake` ← نماذج الاستقبال (Form View) والتدقيق على الصور والفيديو (Proofing)
+  5. `phase-3b-intake` ← نماذج الاستقبال (Form View) والتدقيق على الصور والفيديو (Proofing) ✅
   6. `phase-3b-guests` ← صلاحيات على مستوى العميل/المشروع والضيوف
   إن انقطع العمل: ابدأ من آخر فرع موجود على GitHub واقرأ قسمه أدناه. المستخدم يدمج بالترتيب عبر PR ثم يشغّل `migrate --force` و`db:seed --force` و`config:cache`.
 
@@ -143,6 +143,14 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 - **Cron مطلوب على الخادم** (موجود منذ المرحلة 2): `* * * * * php artisan schedule:run`.
 - الاختبارات: `tests/Feature/MyWorkTest.php`.
 
+## ما بُني في نماذج الاستقبال والتدقيق (المرحلة 3ب، الخطوة 5: `phase-3b-intake`)
+
+- الجداول (`2026_11_30_000500_create_intake_forms_and_proofing_tables.php`): `intake_forms` (`task_list_id`، `token` عشوائي 32 حرفاً للرابط، `is_public`، `is_active`، `fields` JSON، `defaults` JSON، `confirmation`، `submissions_count`)، و`attachments.previous_id` + `attachments.version` (نسخ الملف)، و`proof_comments` (`attachment_id`، `task_id`، `parent_id` للردود، `user_id` أو `author_name` لتعليقات العميل لاحقاً، `x`/`y` بالنسبة المئوية، `at_seconds`، `resolved_at/by`).
+- **نماذج الاستقبال** `App\Services\Tasks\IntakeForms`: الأسئلة مفاتيح ثابتة `title` (دائماً) `description` `due` `priority` `files` `name` `email`، و`cf_<id>` لحقول القائمة المخصصة (الأنواع في `FIELD_TYPES`، بلا people وformula). `clean` يحذف المفاتيح غير الصالحة والمكررة. القيم التلقائية: المسؤولون، الوسوم، النوع، الأولوية، `due_in_days`. `submit` يتحقق من المطلوب، ينشئ المهمة (المنشئ = المستخدم، أو صاحب النموذج في الرابط العام) ويكتب «مقدّم الطلب» في الوصف، ثم يرفع الملفات بعد إنشاء المهمة. بلا مسؤول تلقائي يصل لصاحب النموذج إشعار `task.form` لتوزيعها. المهمة تُطلق أتمتة `task_created` كالعادة.
+- المسارات: إدارة `GET /tasks/forms` (`tasks/Forms.vue` + `FormModal.vue`)، `GET /tasks/forms/fields?list=`، `POST/PUT/DELETE /tasks/forms` (لمن يدير القائمة: `CustomFields::canManage('list')`). التعبئة خارج مجموعة auth: `GET /forms/{token}` (الداخلي يحوّل الزائر لتسجيل الدخول)، `POST /forms/{token}` (حد 10 بالدقيقة، وحقل `website` مخفي كفخ للبوتات). الصفحة `pages/forms/Fill.vue` بهوية الشركة دون قائمة جانبية. في القائمة الجانبية «نماذج الاستقبال».
+- **التدقيق** `App\Services\Tasks\Proofing`: لمرفقات المهمة من الصور والفيديو (`Attachment::isProofable`). `addComment` (نقطة x/y، أو لحظة، أو عام؛ الردود بلا موضع؛ يُبلغ المتابعين وصاحب التعليق الأصلي `task.proof` ويُطلق أتمتة `comment_added`)، `resolve`، `newVersion` (على آخر نسخة فقط؛ يرفع عبر `Attachments::store` ويربط `previous_id`)، `versions`، `payload`. الصفحة `GET /tasks/{task}/proof/{attachment}` (`tasks/Proof.vue`: نقر على الصورة لتثبيت دبوس مرقّم، شريط زمني بعلامات للفيديو و«تعليق عند اللحظة الحالية»، تبديل النسخ مع عدد المفتوح، إخفاء/إظهار المحلولة، الردود). المسارات: `POST /tasks/proof/{attachment}/comments`، `PATCH /tasks/proof-comments/{id}` (`resolved` لأي من يرى المهمة، `body` لصاحبه)، `DELETE` (صاحبه أو من يعدّل المهمة)، `POST /tasks/proof/{attachment}/version` (من يعدّل المهمة). الملف يُعرض من `/attachments/{id}/inline` (بث عبر BOS). في لوحة المرفقات زر «تدقيق» وشارة النسخة.
+- الاختبارات: `tests/Feature/TaskIntakeTest.php`.
+
 ## ما بُني في القوالب والأتمتة (المرحلة 3ب، الخطوة 4: `phase-3b-automation`)
 
 - الجداول (`2026_11_30_000400_create_templates_and_automations_tables.php`): `task_templates` (`type` task | list | project، `payload` JSON)، `automations` (`scope_type` all | client | project | list + `scope_id`، `trigger`، `trigger_config`، `conditions`، `actions`، `is_active`، `runs_count`، `last_run_at`)، `automation_runs` (سجل التنفيذ: ok | error، الرسالة، `dedupe_key` لمنع التكرار في المُشغِّلات الزمنية).
@@ -229,6 +237,15 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 6. **عدّاد جولات التعديل** المذكور مع طلبات التغيير مؤجل إلى التسليمات وبوابة المراجعة (المرحلة 6)؛ طلب التغيير الآن يحمل أثر التكلفة والوقت فقط.
 7. عرض الميزانية مقصور على من لديه `projects.manage_budget` أو `projects.approve_changes` أو `finance.view`؛ أعضاء الفريق العاديون لا يرونها.
 8. أرشفة المشروع (soft delete) لا تفك ربطه بالعرض/العقد، فلا يمكن إنشاء مشروع جديد من نفس العرض بعد أرشفة مشروعه.
+
+**المرحلة 3ب — الخطوة 5 (نماذج الاستقبال والتدقيق):**
+1. **النموذج العام يُنشئ المهمة باسم صاحب النموذج** (لا حساب للعميل بعد)، ويُكتب اسم مقدّم الطلب وبريده في الوصف. مع بوابة العميل (المرحلة 6) يصبح العميل صاحب الطلب.
+2. الحماية من الإزعاج في النموذج العام: حد 10 إرسالات بالدقيقة لكل IP وحقل مخفي للبوتات، بلا CAPTCHA (تُضاف إن ظهر سبام).
+3. النموذج الداخلي يملؤه **أي موظف مسجّل** حتى لو لم يكن يرى القائمة (طلب تصميم من المبيعات مثلاً)؛ لا يرى المهمة بعد الإرسال إلا إن كانت صلاحياته تسمح.
+4. بلا مسؤول تلقائي في النموذج: تبقى المهمة دون مسؤول ويصل إشعار لصاحب النموذج لتوزيعها.
+5. **التدقيق على مرفقات المهام** (صور وفيديو)، وجدول التسليمات (deliverables) المذكور في المخطط مؤجل إلى بوابة العميل؛ `proof_comments.author_name` جاهز لتعليقات العميل.
+6. الفيديو يُبث عبر خادم BOS من خدمة التخزين دون دعم Range، فالقفز إلى لحظة قد يحتاج تحميل الملف أولاً في بعض المتصفحات. الأفضل أن تكون فيديوهات المراجعة بحجم معقول (نسخة معاينة مضغوطة).
+7. النسخة الجديدة تُرفع على آخر نسخة فقط، وكل نسخة لها تعليقاتها؛ النسخ القديمة تبقى في المرفقات بشارة «ن1، ن2…».
 
 **المرحلة 3ب — الخطوة 4 (القوالب والأتمتة):**
 1. **الأتمتة متزامنة** (لا Queue): تُنفَّذ أثناء الحفظ، والزمنية كل 15 دقيقة عبر Scheduler. إن صارت ثقيلة لاحقاً ننقلها لطابور.

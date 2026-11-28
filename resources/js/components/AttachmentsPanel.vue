@@ -1,13 +1,13 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { router, usePage } from '@inertiajs/vue3';
-import { Paperclip, Upload, ExternalLink, RotateCw, Trash2, FileText, FileImage, FileVideo, FileArchive, File as FileIcon, AlertTriangle, CloudOff } from '@lucide/vue';
+import { Link, router, usePage } from '@inertiajs/vue3';
+import { Paperclip, Upload, ExternalLink, RotateCw, Trash2, FileText, FileImage, FileVideo, FileArchive, File as FileIcon, AlertTriangle, CloudOff, MessageSquareDot } from '@lucide/vue';
 import Badge from '@/components/Badge.vue';
 import { useAuth } from '@/lib/auth';
 import { formatDateTime } from '@/lib/format';
 
 // files = { type, id, items, can_upload, policy: { connected, provider, max_mb, types } }
-const props = defineProps({ files: Object, title: { type: String, default: 'الملفات' }, hint: String, flat: Boolean });
+const props = defineProps({ files: Object, title: { type: String, default: 'الملفات' }, hint: String, flat: Boolean, proofBase: String });
 const { can } = useAuth();
 const page = usePage();
 const input = ref(null);
@@ -72,6 +72,8 @@ const size = (b) => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.m
                     <p class="text-xs text-slate-500"><span class="num">{{ size(a.size) }}</span> · {{ a.uploader ?? '—' }} · {{ formatDateTime(a.created_at) }}</p>
                     <p v-if="a.error" class="mt-0.5 flex items-start gap-1 text-xs text-red-700"><AlertTriangle class="mt-0.5 size-3 shrink-0" />{{ a.error }}</p>
                 </div>
+                <span v-if="a.version > 1" class="num rounded bg-slate-100 px-1.5 text-xs text-slate-500">ن{{ a.version }}</span>
+                <Link v-if="proofBase && a.proofable" :href="`${proofBase}/${a.id}`" class="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-brand hover:bg-brand/10" title="مراجعة بتعليقات على الصورة أو الفيديو"><MessageSquareDot class="size-4" /> تدقيق</Link>
                 <Badge v-if="a.status === 'failed'" tone="red">فشل الرفع</Badge>
                 <Badge v-else-if="a.status === 'pending'" tone="amber">قيد الرفع</Badge>
                 <a v-if="a.status === 'uploaded'" :href="`/attachments/${a.id}/open`" target="_blank" rel="noopener" class="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-brand" title="فتح في الخدمة"><ExternalLink class="size-4" /></a>
