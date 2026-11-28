@@ -37,7 +37,7 @@ class TaskAutomationTest extends TestCase
     {
         parent::setUp();
         $this->seed([CurrencySeeder::class, NumberSequenceSeeder::class, TaskSeeder::class]);
-        $this->u = $this->userWith(['tasks.view' => 'all', 'tasks.create' => 'all', 'tasks.edit' => 'all', 'tasks.assign' => 'all']);
+        $this->u = $this->userWith(['tasks.view' => 'all', 'tasks.create' => 'all', 'tasks.edit' => 'all', 'tasks.assign' => 'all', 'projects.view' => 'all']);
         $this->actingAs($this->u);
         $this->client = Client::factory()->create(['name' => 'ULFED']);
         $this->list = TaskLists::create($this->client, null, ['name' => 'المعرض'], null, false);
@@ -195,7 +195,7 @@ class TaskAutomationTest extends TestCase
         Automations::tick();
         Automations::tick();
         $this->assertSame($before + 1, $project->taskLists()->count());
-        $new = $project->taskLists()->latest('id')->first();
+        $new = TaskList::where('project_id', $project->id)->latest('id')->first();
         $this->assertStringStartsWith('محتوى ', $new->name);
         $this->assertSame(['8 منشورات'], Task::where('task_list_id', $new->id)->pluck('title')->all());
         $this->travelTo('2026-12-02 00:15');
