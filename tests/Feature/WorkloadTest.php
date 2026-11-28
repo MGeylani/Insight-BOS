@@ -41,23 +41,27 @@ class WorkloadTest extends TestCase
         Tasks::create($list, ['title' => 'بلا تقدير', 'assignees' => [$a->id], 'due_date' => '2026-12-11'], $boss);
         TimeOff::create(['user_id' => $a->id, 'starts_on' => '2026-12-11', 'ends_on' => '2026-12-11', 'type' => 'sick']);
 
-        $this->get('/tasks/workload')->assertOk()->assertInertia(fn (Assert $page) => $page->component('tasks/Workload')
-            ->where('days.0', '2026-12-05')->has('days', 7)
-            ->where("people.{$this->idx($page, $a)}.cells.2026-12-07.hours", 1.67)
-            ->where("people.{$this->idx($page, $a)}.cells.2026-12-10.hours", 10)
-            ->where("people.{$this->idx($page, $a)}.cells.2026-12-10.capacity", 8)
-            ->where("people.{$this->idx($page, $a)}.cells.2026-12-11.capacity", 0)
-            ->where("people.{$this->idx($page, $a)}.cells.2026-12-11.off", 'sick')
-            ->where("people.{$this->idx($page, $a)}.cells.2026-12-05.capacity", 0)
-            ->where("people.{$this->idx($page, $a)}.total", 15)
-            ->where("people.{$this->idx($page, $a)}.capacity", 32)
-            ->where("people.{$this->idx($page, $a)}.over", false)
-            ->where("people.{$this->idx($page, $a)}.tasks.2.hours", 0));
+        $props = $this->get('/tasks/workload')->assertOk()->viewData('page')['props'];
+        $this->assertSame('tasks/Workload', $this->get('/tasks/workload')->viewData('page')['component']);
+        $this->assertSame('2026-12-05', $props['days'][0]);
+        $this->assertCount(7, $props['days']);
+        $p = collect($props['people'])->firstWhere('id', $a->id);
+        $this->assertEquals(1.67, $p['cells']['2026-12-07']['hours']);
+        $this->assertEquals(10, $p['cells']['2026-12-10']['hours']);
+        $this->assertEquals(8, $p['cells']['2026-12-10']['capacity']);
+        $this->assertEquals(0, $p['cells']['2026-12-11']['capacity']);
+        $this->assertSame('sick', $p['cells']['2026-12-11']['off']);
+        $this->assertEquals(0, $p['cells']['2026-12-05']['capacity']);
+        $this->assertEquals(15, $p['total']);
+        $this->assertEquals(32, $p['capacity']);
+        $this->assertFalse($p['over']);
+        $this->assertEquals(0, $p['tasks'][2]['hours']);
 
         // Working only 4 hours a day puts the person over capacity.
         $this->put("/tasks/workload/capacity/{$a->id}", ['capacity_hours' => 3, 'work_days' => [1, 2, 3, 4, 5]])->assertSessionHasNoErrors();
-        $this->get('/tasks/workload?mode=timeline')->assertOk()->assertInertia(fn (Assert $page) => $page->where('mode', 'timeline')
-            ->where("people.{$this->idx($page, $a)}.over", true));
+        $props = $this->get('/tasks/workload?mode=timeline')->assertOk()->viewData('page')['props'];
+        $this->assertSame('timeline', $props['mode']);
+        $this->assertTrue(collect($props['people'])->firstWhere('id', $a->id)['over']);
 
         // An employee sees only themselves and cannot change capacity or others' days off.
         $this->actingAs($a)->get('/tasks/workload')->assertOk()->assertInertia(fn (Assert $page) => $page->has('people', 1)->where('canManage', false));
@@ -65,12 +69,6 @@ class WorkloadTest extends TestCase
         $this->actingAs($a)->post('/tasks/time-off', ['user_id' => $a->id, 'starts_on' => '2026-12-20', 'ends_on' => '2026-12-22', 'type' => 'vacation'])->assertSessionHasNoErrors();
         $this->actingAs($a)->post('/tasks/time-off', ['user_id' => $b->id, 'starts_on' => '2026-12-20', 'ends_on' => '2026-12-22', 'type' => 'vacation'])->assertForbidden();
         $this->actingAs($a)->get('/tasks/workload?week=2026-12-19&weeks=2')->assertOk()->assertInertia(fn (Assert $page) => $page->has('days', 14)->has('timeOff', 1));
-    }
-
-    /** Index of a person in the payload. */
-    private function idx(Assert $page, User $u): int
-    {
-        return collect($page->toArray()['people'])->search(fn ($p) => $p['id'] === $u->id);
     }
 
     public function test_timesheets_submit_lock_and_approve(): void
@@ -92,7 +90,7 @@ class WorkloadTest extends TestCase
         $this->assertSame(0, $other->notifications()->count());
 
         // Locked: no new, changed or deleted time in that week.
-        $this->actingAs($emp)->post('/time-entries', ['date' => '2026-12-08', 'minutes' => 30])->assertSessionHasErrors('date');
+        $this->actingAs($emp)->post('/time-entries', ['date' => '2026-12-06', 'minutes' => 30])->assertSessionHasErrors('date');
         $e = TimeEntry::first();
         $this->actingAs($emp)->patch("/time-entries/{$e->id}", ['minutes' => 30])->assertSessionHasErrors('date');
         $this->actingAs($emp)->delete("/time-entries/{$e->id}")->assertSessionHasErrors('date');
@@ -108,7 +106,7 @@ class WorkloadTest extends TestCase
         $this->assertSame('timesheet.reject', $emp->notifications()->first()->data['kind']);
 
         // Rejected weeks are open again; resubmit and approve.
-        $this->actingAs($emp)->post('/time-entries', ['date' => '2026-12-08', 'minutes' => 60])->assertSessionHasNoErrors();
+        $this->actingAs($emp)->post('/time-entries', ['date' => '2026-12-06', 'minutes' => 60])->assertSessionHasNoErrors();
         $this->actingAs($emp)->post('/timesheets/submit', ['week' => '2026-12-09'])->assertSessionHasNoErrors();
         $this->actingAs($approver)->post("/timesheets/{$ts->id}/decide", ['decision' => 'approve'])->assertSessionHasNoErrors();
         $this->assertSame('approved', $ts->fresh()->status);
