@@ -13,8 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Stored statuses: draft | issued | cancelled. Shown statuses add, for issued invoices:
- * paid (nothing left), partial (something paid), overdue (past due with a balance). Payments arrive in step 2;
- * until then paidAmount() is 0.
+ * paid (nothing left), partial (something paid), overdue (past due with a balance), from the allocated receipts.
  */
 class Invoice extends Model
 {
@@ -45,14 +44,41 @@ class Invoice extends Model
         return $this->status === 'issued';
     }
 
-    /** Amount paid so far (payments: phase 4, step 2). Uses a preloaded `paid_sum` when present. */
+    /** Amount paid so far: the receipts allocated to it (reversed receipts lose their allocations). */
     public function paidAmount(): float
     {
         if (array_key_exists('paid_sum', $this->attributes)) {
             return round((float) $this->attributes['paid_sum'], 2);
         }
+        if ($this->relationLoaded('allocations')) {
+            return round((float) $this->allocations->sum('amount'), 2);
+        }
 
-        return method_exists($this, 'allocations') ? round((float) $this->allocations()->sum('amount'), 2) : 0.0;
+        return $this->exists ? round((float) $this->allocations()->sum('amount'), 2) : 0.0;
+    }
+
+    /** Adds `paid_sum` (allocated amount) to each row, for lists. */
+    public function scopeWithPaid(Builder $q): Builder
+    {
+        return $q->withSum('allocations as paid_sum', 'amount');
+    }
+
+    /** SQL: issued invoices still owing something / fully paid. */
+    public function scopeUnpaid(Builder $q): Builder
+    {
+        return $q->where('invoices.status', 'issued')
+            ->whereRaw('(select coalesce(sum(a.amount), 0) from payment_allocations a where a.invoice_id = invoices.id) < invoices.total');
+    }
+
+    public function scopePaid(Builder $q): Builder
+    {
+        return $q->where('invoices.status', 'issued')
+            ->whereRaw('(select coalesce(sum(a.amount), 0) from payment_allocations a where a.invoice_id = invoices.id) >= invoices.total');
+    }
+
+    public function allocations(): HasMany
+    {
+        return $this->hasMany(PaymentAllocation::class);
     }
 
     public function balance(): float

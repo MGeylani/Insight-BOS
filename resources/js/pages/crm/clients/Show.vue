@@ -29,7 +29,7 @@ const props = defineProps({
     sources: Object, leadStages: Object, ratings: Object, oppStages: Array, lostReasons: Object,
     activityTypes: Object, clientTypes: Object, users: Array, currencies: Array,
 });
-const { can } = useAuth();
+const { can, perms } = useAuth();
 const options = computed(() => props);
 const stageLabel = (k) => props.oppStages.find((s) => s.key === k)?.label;
 const tab = ref('overview');
@@ -116,7 +116,7 @@ const tabs = computed(() => [
                 <QuoteList :quotes="quotes" :statuses="quoteStatuses" :create-href="`/crm/quotes/create?client_id=${client.id}`" />
                 <ContractList :contracts="contracts" :statuses="contractStatuses" :create-href="`/crm/contracts/create?client_id=${client.id}`" />
                 <ProjectList :projects="projects" :statuses="projectStatuses" :create-href="`/projects/create?client_id=${client.id}`" />
-                <InvoiceList v-if="can('finance.view')" :invoices="invoices" :statuses="invoiceStatuses" :create-href="can('finance.create') ? `/finance/invoices/create?client_id=${client.id}` : null" />
+                <InvoiceList v-if="can('finance.view')" :invoices="invoices" :statuses="invoiceStatuses" :create-href="can('finance.create') ? `/finance/invoices/create?client_id=${client.id}` : null" :statement-href="perms['*'] || perms['finance.view'] === 'all' ? `/finance/statements/${client.id}` : null" />
                 <AttachmentsPanel :files="files" title="ملفات العميل" />
                 <ActivityFeed :activities="activities.slice(0, 5)" subject-type="client" :subject-id="client.id" :options="options" />
             </div>

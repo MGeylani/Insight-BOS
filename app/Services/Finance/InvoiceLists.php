@@ -17,7 +17,7 @@ class InvoiceLists
             return [];
         }
 
-        return $where(Invoice::visibleTo($user, 'finance.view'))->with('items')->latest('id')->limit($limit)->get()
+        return $where(Invoice::visibleTo($user, 'finance.view'))->with('items')->withPaid()->latest('id')->limit($limit)->get()
             ->map(fn (Invoice $i) => InvoiceController::row($i))->all();
     }
 }

@@ -49,6 +49,8 @@ class AppServiceProvider extends ServiceProvider
             'task_list' => TaskList::class,
             'intake_form' => \App\Models\IntakeForm::class,
             'invoice' => \App\Models\Invoice::class,
+            'payment' => \App\Models\Payment::class,
+            'account' => \App\Models\Account::class,
         ]);
 
         Password::defaults(fn () => Password::min(10)->letters()->numbers());

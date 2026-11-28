@@ -7,7 +7,7 @@ import { money } from '@/lib/crm';
 import { formatDate } from '@/lib/format';
 import { invoiceStatusTone } from '@/lib/finance';
 
-defineProps({ invoices: Array, statuses: Object, createHref: { type: String, default: null }, title: { type: String, default: 'الفواتير' } });
+defineProps({ invoices: Array, statuses: Object, createHref: { type: String, default: null }, statementHref: { type: String, default: null }, title: { type: String, default: 'الفواتير' } });
 </script>
 
 <template>
@@ -15,6 +15,7 @@ defineProps({ invoices: Array, statuses: Object, createHref: { type: String, def
         <div class="mb-3 flex items-center gap-2">
             <Receipt class="size-4 text-slate-400" />
             <h3 class="me-auto font-semibold text-navy">{{ title }}</h3>
+            <Link v-if="statementHref" :href="statementHref" class="text-xs text-brand hover:underline">كشف الحساب</Link>
             <Link v-if="createHref" :href="createHref" class="flex items-center gap-1 text-xs text-brand hover:underline"><Plus class="size-3.5" /> فاتورة</Link>
         </div>
         <ul v-if="invoices.length" class="divide-y divide-slate-100 text-sm">

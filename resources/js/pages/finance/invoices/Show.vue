@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
-import { Pencil, Send, FileDown, Eye, Ban, Copy, Trash2, Briefcase, Building2, FileSignature, FileText, UserRound, CalendarDays, AlertTriangle, Timer } from '@lucide/vue';
+import { Pencil, Send, FileDown, Eye, Ban, Copy, Trash2, Briefcase, Building2, FileSignature, FileText, UserRound, CalendarDays, AlertTriangle, Timer, HandCoins, Plus, Link2 } from '@lucide/vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import Btn from '@/components/Btn.vue';
@@ -15,7 +15,7 @@ import { formatDate, formatDateTime, formatNumber } from '@/lib/format';
 import { money } from '@/lib/crm';
 import { invoiceStatusTone, hours } from '@/lib/finance';
 
-const props = defineProps({ invoice: Object, log: Array, statuses: Object, files: Object });
+const props = defineProps({ invoice: Object, log: Array, statuses: Object, files: Object, payments: { type: Array, default: () => [] }, credits: { type: Array, default: () => [] }, accounts: Array, methods: Object });
 const { can } = useAuth();
 const page = usePage();
 const inv = computed(() => props.invoice);
@@ -35,6 +35,18 @@ const destroy = () => confirm('حذف هذه المسودة؟ تعود دفعا�
 const cancelling = ref(false);
 const cancelForm = useForm({ reason: '' });
 const cancel = () => cancelForm.post(`/finance/invoices/${inv.value.id}/cancel`, { preserveScroll: true, onSuccess: () => { cancelling.value = false; cancelForm.reset(); } });
+
+// Settle the balance from the client's earlier unallocated receipts (credit).
+const applying = ref(null);
+const creditForm = useForm({ invoice_id: props.invoice.id, amount: '', payment_amount: '' });
+const openCredit = (c) => {
+    applying.value = c;
+    creditForm.amount = c.currency === inv.value.currency ? Math.min(c.unallocated, inv.value.balance) : inv.value.balance;
+    creditForm.payment_amount = '';
+};
+const applyCredit = () => creditForm.transform((d) => ({ ...d, payment_amount: d.payment_amount || null }))
+    .post(`/finance/payments/${applying.value.id}/allocate`, { preserveScroll: true, onSuccess: () => (applying.value = null) });
+const canReceive = computed(() => inv.value.status !== 'draft' && inv.value.status !== 'cancelled' && inv.value.balance > 0 && can('finance.create'));
 
 const pdfUrl = computed(() => `/finance/invoices/${inv.value.id}/pdf`);
 </script>
@@ -139,6 +151,32 @@ const pdfUrl = computed(() => `/finance/invoices/${inv.value.id}/pdf`);
                         <div v-if="inv.source" class="text-xs text-slate-500">نسخة من <Link :href="`/finance/invoices/${inv.source.id}`" class="text-brand hover:underline">{{ inv.source.number ?? 'مسودة' }}</Link></div>
                     </dl>
                 </div>
+                <div v-if="inv.status !== 'draft' && inv.status !== 'cancelled'" class="card p-5">
+                    <div class="mb-3 flex items-center justify-between gap-2">
+                        <h3 class="flex items-center gap-2 font-semibold text-navy"><HandCoins class="size-4" /> الدفعات</h3>
+                        <Btn v-if="canReceive" size="sm" :href="`/finance/payments/create?invoice_id=${inv.id}`"><Plus class="size-3.5" /> تسجيل دفعة</Btn>
+                    </div>
+                    <ul v-if="payments.length" class="divide-y divide-slate-100 text-sm">
+                        <li v-for="a in payments" :key="a.id" class="flex items-center justify-between gap-2 py-2">
+                            <div>
+                                <Link :href="`/finance/payments/${a.payment.id}`" class="num font-semibold text-brand hover:underline">{{ a.payment.number }}</Link>
+                                <p class="text-xs text-slate-500">{{ formatDate(a.payment.date) }} · {{ a.payment.account }}</p>
+                            </div>
+                            <div class="text-end">
+                                <p class="num font-semibold text-emerald-700">{{ money(a.amount, inv.currency) }}</p>
+                                <p v-if="a.payment.currency !== inv.currency" class="num text-xs text-slate-500">{{ money(a.payment_amount, a.payment.currency) }}</p>
+                            </div>
+                        </li>
+                    </ul>
+                    <p v-else class="text-sm text-slate-500">لم تُسجَّل دفعات بعد.</p>
+                    <div v-if="credits.length && inv.balance > 0 && can('finance.edit')" class="mt-3 rounded-xl bg-sky/10 p-3 text-sm">
+                        <p class="mb-2 text-slate-700">للعميل رصيد غير مسوّى:</p>
+                        <button v-for="c in credits" :key="c.id" type="button" class="flex w-full items-center justify-between rounded-lg px-2 py-1.5 hover:bg-white" @click="openCredit(c)">
+                            <span class="num">{{ c.number }} · {{ money(c.unallocated, c.currency) }}</span>
+                            <span class="flex items-center gap-1 text-xs font-semibold text-brand"><Link2 class="size-3.5" /> تسوية</span>
+                        </button>
+                    </div>
+                </div>
                 <AttachmentsPanel :files="files" title="المرفقات" />
                 <div class="card p-5">
                     <h3 class="mb-3 font-semibold text-navy">السجل</h3>
@@ -152,6 +190,17 @@ const pdfUrl = computed(() => `/finance/invoices/${inv.value.id}/pdf`);
                 </div>
             </div>
         </div>
+
+        <Modal :model-value="!!applying" title="تسوية من رصيد العميل" @update:model-value="(v) => !v && (applying = null)">
+            <template v-if="applying">
+                <p class="mb-4 text-sm text-slate-600">من السند <span class="num font-semibold">{{ applying.number }}</span> (غير المسوّى {{ money(applying.unallocated, applying.currency) }}) على المتبقي {{ money(inv.balance, inv.currency) }}.</p>
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <Field :label="`المبلغ على الفاتورة (${inv.currency})`" id="ca" :error="creditForm.errors.amount || creditForm.errors.allocations"><input id="ca" v-model="creditForm.amount" type="number" step="0.01" min="0" dir="ltr" class="field-input" /></Field>
+                    <Field v-if="applying.currency !== inv.currency" :label="`يُخصم من السند (${applying.currency})`" id="cp" hint="فارغ = بسعر صرف تاريخ السند"><input id="cp" v-model="creditForm.payment_amount" type="number" step="0.01" min="0" dir="ltr" class="field-input" /></Field>
+                </div>
+            </template>
+            <template #footer><Btn variant="secondary" @click="applying = null">تراجع</Btn><Btn :loading="creditForm.processing" @click="applyCredit">تسوية</Btn></template>
+        </Modal>
 
         <Modal v-model="cancelling" title="إلغاء الفاتورة">
             <Field label="سبب الإلغاء" id="cx" :error="cancelForm.errors.reason" required>

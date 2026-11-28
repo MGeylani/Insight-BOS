@@ -45,6 +45,9 @@ use App\Http\Controllers\Tasks\TaskController;
 use App\Http\Controllers\Tasks\TaskListController;
 use App\Http\Controllers\Tasks\TaskSettingsController;
 use App\Http\Controllers\Finance\InvoiceController;
+use App\Http\Controllers\Finance\PaymentController;
+use App\Http\Controllers\Finance\AccountController;
+use App\Http\Controllers\Finance\ReceivablesController;
 use Illuminate\Support\Facades\Route;
 
 // Intake forms: public ones open without signing in; internal ones send guests to the login page.
@@ -226,20 +229,43 @@ Route::middleware('auth')->group(function () {
             Route::get('invoices/{invoice}/pdf', [InvoiceController::class, 'pdf'])->name('invoices.pdf');
             Route::get('billable-time/{project}', [InvoiceController::class, 'billableTime'])->name('billable-time');
             Route::get('pending-schedules/{client}', [InvoiceController::class, 'pendingSchedules'])->name('pending-schedules');
+            Route::get('payments', [PaymentController::class, 'index'])->name('payments.index');
+            Route::get('payments/{payment}', [PaymentController::class, 'show'])->whereNumber('payment')->name('payments.show');
+            Route::get('payments/{payment}/pdf', [PaymentController::class, 'pdf'])->name('payments.pdf');
+            Route::get('client-open/{client}', [PaymentController::class, 'clientOpen'])->name('client-open');
+            Route::get('convert', [PaymentController::class, 'convert'])->name('convert');
+            Route::get('receivables', [ReceivablesController::class, 'index'])->name('receivables');
+            Route::get('statements/{client}', [ReceivablesController::class, 'statement'])->name('statements.show');
+            Route::get('statements/{client}/xlsx', [ReceivablesController::class, 'statementXlsx'])->name('statements.xlsx');
+            // Accounts check scope "all" in the controller.
+            Route::get('accounts', [AccountController::class, 'index'])->name('accounts.index');
+            Route::get('accounts/{account}', [AccountController::class, 'show'])->name('accounts.show');
+            Route::post('accounts', [AccountController::class, 'store'])->name('accounts.store');
+            Route::put('accounts/{account}', [AccountController::class, 'update'])->name('accounts.update');
+            Route::delete('accounts/{account}', [AccountController::class, 'destroy'])->name('accounts.destroy');
+            Route::post('accounts/{account}/restore', [AccountController::class, 'restore'])->name('accounts.restore');
+            Route::post('transfers', [AccountController::class, 'transfer'])->name('transfers.store');
+            Route::post('transfers/{transfer}/reverse', [AccountController::class, 'reverseTransfer'])->name('transfers.reverse');
         });
         Route::middleware('can:finance.create')->group(function () {
             Route::get('invoices/create', [InvoiceController::class, 'create'])->name('invoices.create');
             Route::post('invoices', [InvoiceController::class, 'store'])->name('invoices.store');
             Route::post('invoices/{invoice}/duplicate', [InvoiceController::class, 'duplicate'])->name('invoices.duplicate');
+            Route::get('payments/create', [PaymentController::class, 'create'])->name('payments.create');
+            Route::post('payments', [PaymentController::class, 'store'])->name('payments.store');
         });
         Route::middleware('can:finance.edit')->group(function () {
             Route::get('invoices/{invoice}/edit', [InvoiceController::class, 'edit'])->name('invoices.edit');
             Route::put('invoices/{invoice}', [InvoiceController::class, 'update'])->name('invoices.update');
             Route::post('invoices/{invoice}/issue', [InvoiceController::class, 'issue'])->name('invoices.issue');
+            Route::post('payments/{payment}/allocate', [PaymentController::class, 'allocate'])->name('payments.allocate');
+            Route::delete('allocations/{allocation}', [PaymentController::class, 'deallocate'])->name('allocations.destroy');
+            Route::post('payments/{payment}/refund', [PaymentController::class, 'refund'])->name('payments.refund');
         });
         Route::middleware('can:finance.delete')->group(function () {
             Route::post('invoices/{invoice}/cancel', [InvoiceController::class, 'cancel'])->name('invoices.cancel');
             Route::delete('invoices/{invoice}', [InvoiceController::class, 'destroy'])->name('invoices.destroy');
+            Route::post('payments/{payment}/reverse', [PaymentController::class, 'reverse'])->name('payments.reverse');
         });
     });
 

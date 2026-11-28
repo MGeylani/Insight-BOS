@@ -1,11 +1,17 @@
 <script setup>
 import { Link, usePage } from '@inertiajs/vue3';
-import { FileText } from '@lucide/vue';
+import { FileText, HandCoins, Clock4, Landmark } from '@lucide/vue';
+import { useAuth } from '@/lib/auth';
 
 // Grows with phase 4: payments, accounts, expenses, budgets, reports.
 const page = usePage();
+const { perms } = useAuth();
+const all = (perm) => Boolean(perms.value['*']) || perms.value[perm] === 'all';
 const tabs = [
     { label: 'الفواتير', href: '/finance/invoices', icon: FileText },
+    { label: 'المقبوضات', href: '/finance/payments', icon: HandCoins },
+    { label: 'الذمم المدينة', href: '/finance/receivables', icon: Clock4 },
+    ...(all('finance.view') ? [{ label: 'الصناديق والحسابات', href: '/finance/accounts', icon: Landmark }] : []),
 ];
 const active = (href) => page.url === href || page.url.startsWith(href + '/') || page.url.startsWith(href + '?');
 </script>

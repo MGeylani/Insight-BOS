@@ -26,3 +26,6 @@ export function sumLines(items, taxRateOf) {
 }
 
 export const hours = (minutes) => r2(Number(minutes || 0) / 60);
+
+export const paymentKindLabel = { receipt: 'قبض', refund: 'ردّ' };
+export const accountTypeIcon = { cash: 'Banknote', bank: 'Landmark', wallet: 'Wallet' };

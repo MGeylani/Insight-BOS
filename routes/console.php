@@ -107,3 +107,10 @@ Artisan::command('finance:retainer-invoices', function () {
 })->purpose('Draft invoices for retainer instalments due soon');
 
 \Illuminate\Support\Facades\Schedule::command('finance:retainer-invoices')->dailyAt('07:00')->withoutOverlapping();
+
+// Finance: remind invoice owners of overdue invoices (1, 7, 14, 30, 60 days late).
+Artisan::command('finance:overdue', function () {
+    $this->info('Reminded '.\App\Services\Finance\Receivables::remindOverdue().' invoice(s).');
+})->purpose('Remind owners of overdue invoices');
+
+\Illuminate\Support\Facades\Schedule::command('finance:overdue')->dailyAt('09:10')->withoutOverlapping();
