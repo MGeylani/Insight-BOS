@@ -1,14 +1,15 @@
 <script setup>
 import { computed } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
-import { FileText, HandCoins, Clock4, Landmark, ReceiptText, Truck, Wallet2, Undo2, PiggyBank } from '@lucide/vue';
+import { FileText, HandCoins, Clock4, Landmark, ReceiptText, Truck, Wallet2, Undo2, PiggyBank, LayoutDashboard, BarChart3 } from '@lucide/vue';
 import { useAuth } from '@/lib/auth';
 
-// Grows with phase 4: reports come next.
+// Finance sections, shown by permission.
 const page = usePage();
 const { perms, can } = useAuth();
 const all = (perm) => Boolean(perms.value['*']) || perms.value[perm] === 'all';
 const tabs = computed(() => [
+    all('finance.view') && { label: 'اللوحة', href: '/finance', icon: LayoutDashboard, exact: true },
     can('finance.view') && { label: 'الفواتير', href: '/finance/invoices', icon: FileText },
     can('finance.view') && { label: 'المقبوضات', href: '/finance/payments', icon: HandCoins },
     can('finance.view') && { label: 'الذمم المدينة', href: '/finance/receivables', icon: Clock4 },
@@ -18,8 +19,11 @@ const tabs = computed(() => [
     (can('finance.view') || can('projects.manage_budget')) && { label: 'الميزانيات', href: '/finance/budgets', icon: PiggyBank },
     all('finance.view') && { label: 'التعويضات', href: '/finance/reimbursements', icon: Undo2 },
     all('finance.view') && { label: 'الصناديق والحسابات', href: '/finance/accounts', icon: Landmark },
+    all('finance.view') && { label: 'التقارير', href: '/finance/reports', icon: BarChart3 },
 ].filter(Boolean));
-const active = (href) => page.url === href || page.url.startsWith(href + '/') || page.url.startsWith(href + '?');
+const active = (href) => (href === '/finance'
+    ? page.url === '/finance' || page.url.startsWith('/finance?')
+    : page.url === href || page.url.startsWith(href + '/') || page.url.startsWith(href + '?'));
 </script>
 
 <template>

@@ -24,7 +24,7 @@ export const navigation = [
             { label: 'ضغط العمل', href: '/tasks/workload', icon: Gauge, perm: 'tasks.view' },
             { label: 'نماذج الاستقبال', href: '/tasks/forms', icon: FileInput, perm: 'tasks.view' },
             { label: 'جداول الساعات', href: '/tasks/timesheets', icon: ClipboardCheck, perm: 'tasks.approve_time' },
-            { label: 'المالية', href: '/finance/invoices', match: '/finance', icon: Wallet, perm: 'finance.view' },
+            { label: 'المالية', href: '/finance', match: '/finance', icon: Wallet, perm: 'finance.view' },
             // Employees without finance access: their own expenses and advances.
             { label: 'مصروفاتي', href: '/finance/expenses', match: '/finance', icon: ReceiptText, perm: 'finance.expense', unless: 'finance.view' },
             { label: 'الموارد البشرية', icon: UserRound, perm: 'hr.view', soon: true },
