@@ -19,8 +19,10 @@ class CommentController extends Controller
             'body' => ['required'],
             'parent_id' => ['nullable', 'integer'],
             'assigned_to' => ['nullable', 'integer'],
+            'for_guests' => ['nullable', 'boolean'], // visible to guests who can see the task
         ]);
-        Comments::add($task, $request->user(), $data['body'], $data['parent_id'] ?? null, $data['assigned_to'] ?? null);
+        Comments::add($task, $request->user(), $data['body'], $data['parent_id'] ?? null, $data['assigned_to'] ?? null,
+            $request->has('for_guests') ? ! $request->boolean('for_guests') : null);
 
         return back();
     }

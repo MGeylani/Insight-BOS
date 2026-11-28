@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
-    Plus, Pencil, Trash2, Palette, ListPlus, Settings2, Shapes, List, Columns3, CalendarDays, Table2, Bookmark, BookmarkPlus, Download, Users2, Lock, SlidersHorizontal, Check, ChartGantt, LayoutTemplate, Zap, FileInput,
+    Plus, Pencil, Trash2, Palette, ListPlus, Settings2, Shapes, List, Columns3, CalendarDays, Table2, Bookmark, BookmarkPlus, Download, Users2, Lock, SlidersHorizontal, Check, ChartGantt, LayoutTemplate, Zap, FileInput, Share2,
 } from '@lucide/vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Btn from '@/components/Btn.vue';
@@ -21,6 +21,7 @@ import SaveViewModal from '@/components/tasks/SaveViewModal.vue';
 import FieldsManager from '@/components/tasks/FieldsManager.vue';
 import TaskGanttView from '@/components/tasks/TaskGanttView.vue';
 import TemplatesModal from '@/components/tasks/TemplatesModal.vue';
+import ShareModal from '@/components/tasks/ShareModal.vue';
 import { groupLabels, sortLabels, columnLabels } from '@/lib/tasks';
 
 const props = defineProps({
@@ -93,6 +94,7 @@ const newListClient = computed(() => (loc.value?.type === 'client' ? loc.value.i
 const newListProject = computed(() => (loc.value?.type === 'project' ? loc.value.id : null));
 const top = computed(() => props.tasks.filter((t) => !t.parent_id).length);
 const listId = computed(() => (loc.value?.type === 'list' ? loc.value.id : null));
+const shareOpen = ref(false);
 const tplOpen = ref(false);
 const tplMode = ref('apply');
 const tplSource = computed(() => (loc.value && loc.value.type !== 'client' ? { from: loc.value.type, id: loc.value.id, name: loc.value.name } : null));
@@ -137,7 +139,8 @@ const menuItem = 'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm 
                             </template>
                         </Dropdown>
                         <Btn v-if="canManageFields && loc?.type !== 'list'" variant="secondary" title="الحقول المخصصة" @click="fieldsManager = true"><Shapes class="size-4" /></Btn>
-                        <Dropdown width="w-56">
+                        <Btn v-if="can.share" variant="secondary" title="مشاركة مع الفريق أو العميل (ضيف)" @click="shareOpen = true"><Share2 class="size-4" /> مشاركة</Btn>
+                        <Dropdown v-if="!$page.props.auth.user?.is_guest" width="w-56">
                             <template #trigger><Btn variant="secondary" title="القوالب والأتمتة"><LayoutTemplate class="size-4" /></Btn></template>
                             <template #default="{ close }">
                                 <button v-if="can.create || can.new_list" type="button" :class="menuItem" @click="openTpl('apply'); close()"><LayoutTemplate class="size-4" /> إنشاء من قالب</button>
@@ -224,6 +227,7 @@ const menuItem = 'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm 
         <ListFormModal v-model="listForm" :list="editList" :client-id="newListClient" :project-id="newListProject" :milestones="milestones" :templates="schemeTemplates" />
         <NewTaskModal v-model="newTask" :tree="tree" :location="location" />
         <FieldsManager v-if="canManageFields" v-model="fieldsManager" :fields="customFields" :types="types" :location="location" />
+        <ShareModal v-if="can.share" v-model="shareOpen" :location="location" />
         <TemplatesModal v-model="tplOpen" :mode="tplMode" :source="tplSource" :target="tplTarget" :templates="templates" :kinds="tplKinds" />
         <SaveViewModal v-model="saveView" :location="location" :view="view" :filters="filters" />
     </AppLayout>

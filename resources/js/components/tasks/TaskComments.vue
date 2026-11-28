@@ -1,7 +1,7 @@
 <script setup>
 import { nextTick, onMounted, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
-import { MessageSquare, Reply, Pencil, Trash2, CheckCircle2, RotateCcw, UserCheck, Send } from '@lucide/vue';
+import { MessageSquare, Reply, Pencil, Trash2, CheckCircle2, RotateCcw, UserCheck, Send, Lock } from '@lucide/vue';
 import Avatar from '@/components/Avatar.vue';
 import Btn from '@/components/Btn.vue';
 import Dropdown from '@/components/Dropdown.vue';
@@ -10,7 +10,9 @@ import RichView from '@/components/RichView.vue';
 import { formatDateTime } from '@/lib/format';
 import { keep } from '@/lib/tasks';
 
-const props = defineProps({ taskId: Number, comments: Array, users: Array, uploader: Function });
+// hasGuests: guests can see this task, so new comments are internal unless "visible to guests" is ticked.
+const props = defineProps({ taskId: Number, comments: Array, users: Array, uploader: Function, hasGuests: Boolean, guest: Boolean });
+const forGuests = ref(false);
 const draft = ref(null);
 const assignTo = ref('');
 const composer = ref(null);
@@ -28,7 +30,7 @@ function send(body, extra, done) {
         ...keep, onSuccess: done, onFinish: () => (busy.value = false),
     });
 }
-const post = () => send(draft.value, { assigned_to: assignTo.value || null }, () => { draft.value = null; assignTo.value = ''; composer.value?.clear(); });
+const post = () => send(draft.value, { assigned_to: assignTo.value || null, ...(props.hasGuests ? { for_guests: forGuests.value } : {}) }, () => { draft.value = null; assignTo.value = ''; forGuests.value = false; composer.value?.clear(); });
 const reply = (c) => send(replyDraft.value, { parent_id: c.id }, () => { replyDraft.value = null; replyFor.value = null; });
 const startEdit = (c) => { editing.value = c.id; editDraft.value = c.body; };
 const saveEdit = (c) => editDraft.value && router.patch(`/tasks/comments/${c.id}`, { body: editDraft.value }, { ...keep, onSuccess: () => (editing.value = null) });
@@ -59,6 +61,7 @@ onMounted(async () => {
                                 <span class="font-semibold text-slate-800">{{ m.user?.name ?? '—' }}</span>
                                 <span class="text-slate-400">{{ formatDateTime(m.created_at) }}</span>
                                 <span v-if="m.edited_at" class="text-slate-400">(معدّل)</span>
+                                <span v-if="m.is_internal && !i" class="flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-slate-600" title="لا يراه الضيوف"><Lock class="size-3" /> داخلي</span>
                                 <span v-if="m.assignee" class="flex items-center gap-1 rounded-full px-2 py-0.5" :class="m.resolved_at ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'">
                                     <UserCheck class="size-3" /> {{ m.assignee.name }}<template v-if="m.resolved_at"> · تم الحل</template>
                                 </span>
@@ -99,7 +102,9 @@ onMounted(async () => {
             <RichEditor ref="composer" v-model="draft" :users="users" :uploader="uploader" compact placeholder="اكتب تعليقاً… @ للإشارة، الصق صورة مباشرة، Ctrl+Enter للإرسال" @submit="post" @error="(e) => (error = e)" />
             <p v-if="error" class="field-error">{{ error }}</p>
             <div class="mt-2 flex flex-wrap items-center justify-end gap-2">
-                <select v-model="assignTo" class="field-input w-auto py-1.5 text-sm" title="التعليق المسند يظهر للشخص كبند مطلوب حتى يُحل">
+                <label v-if="hasGuests" class="me-auto flex items-center gap-1.5 text-xs text-slate-600" title="بدونها يبقى التعليق داخلياً لا يراه الضيوف (العميل)">
+                    <input v-model="forGuests" type="checkbox" class="rounded" /> مرئي للضيوف</label>
+                <select v-if="!guest" v-model="assignTo" class="field-input w-auto py-1.5 text-sm" title="التعليق المسند يظهر للشخص كبند مطلوب حتى يُحل">
                     <option value="">بلا إسناد</option><option v-for="u in users" :key="u.id" :value="u.id">إسناد إلى {{ u.name }}</option>
                 </select>
                 <Btn :loading="busy" :disabled="!draft" @click="post"><Send class="size-4" /> إرسال</Btn>

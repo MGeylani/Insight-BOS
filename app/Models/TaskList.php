@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Tasks\Access;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -28,35 +29,43 @@ class TaskList extends Model
         return ['sort' => 'integer'];
     }
 
+    /**
+     * Lists the user can see: by their permission scope, plus clients / projects / lists shared with them
+     * (Services\Tasks\Access). Guests see only shared lists and lists holding tasks they can see.
+     */
     public function scopeVisibleTo(Builder $query, User $user, string $permission = 'tasks.view'): Builder
     {
         $scope = $user->permissionScope($permission);
-        if ($scope === 'all') {
+        $levels = Access::levels($permission);
+        if ($scope === 'all' && ! $user->is_guest) {
             return $query;
         }
-        if ($scope === null) {
+        if ($scope === null && ! $levels) {
             return $query->whereRaw('1 = 0');
         }
         $visibleTasks = Task::query()->visibleTo($user, $permission);
 
-        return $query->where(function (Builder $q) use ($user, $scope, $visibleTasks) {
-            $q->where('task_lists.created_by', $user->id)
-                ->orWhereIn('task_lists.client_id', Client::where('is_internal', true)->select('id'))
-                ->orWhereIn('task_lists.id', (clone $visibleTasks)->select('tasks.task_list_id'))
+        return $query->where(function (Builder $q) use ($user, $scope, $levels, $visibleTasks) {
+            $q->whereIn('task_lists.id', (clone $visibleTasks)->select('tasks.task_list_id'))
                 ->orWhereIn('task_lists.id', TaskListLink::whereIn('task_id', (clone $visibleTasks)->select('tasks.id'))->select('task_list_id'));
-            if ($scope === 'assigned') {
-                $q->orWhereIn('task_lists.project_id', Task::projectsOf($user));
+            if ($scope !== null && ! $user->is_guest) {
+                $q->orWhere('task_lists.created_by', $user->id)
+                    ->orWhereIn('task_lists.client_id', Client::where('is_internal', true)->select('id'));
+                if ($scope === 'assigned') {
+                    $q->orWhereIn('task_lists.project_id', Task::projectsOf($user));
+                }
             }
+            Access::orLists($q, $user, $levels);
         });
     }
 
     public function isVisibleTo(User $user, string $permission = 'tasks.view'): bool
     {
         $scope = $user->permissionScope($permission);
-        if ($scope === 'all') {
+        if ($scope === 'all' && ! $user->is_guest) {
             return true;
         }
-        if ($scope === null) {
+        if ($scope === null && ! Access::levels($permission)) {
             return false;
         }
 
@@ -66,6 +75,9 @@ class TaskList extends Model
     /** Rename, delete and edit the statuses of this list. */
     public function canManage(User $user): bool
     {
+        if ($user->is_guest) {
+            return false;
+        }
         if ($user->permissionScope('tasks.edit') === 'all') {
             return true;
         }
@@ -80,6 +92,9 @@ class TaskList extends Model
     /** Create a list under this client / project. */
     public static function canCreateFor(User $user, Client $client, ?Project $project): bool
     {
+        if ($user->is_guest) {
+            return false;
+        }
         if ($user->permissionScope('tasks.edit') === 'all') {
             return true;
         }

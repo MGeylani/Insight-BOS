@@ -17,7 +17,7 @@ const menuOpen = ref(false);
 
 const sections = computed(() =>
     navigation
-        .map((s) => ({ ...s, items: s.items.filter((i) => !i.perm || can(i.perm)) }))
+        .map((s) => ({ ...s, items: s.items.filter((i) => (user.value?.is_guest ? i.guest : !i.perm || can(i.perm))) }))
         .filter((s) => s.items.length),
 );
 

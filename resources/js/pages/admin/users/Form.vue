@@ -81,6 +81,7 @@ const submit = () => {
                         <Btn variant="secondary" :disabled="!chosen" @click="applyTemplate">تطبيق</Btn>
                     </div>
                 </div>
+                <div v-if="user?.is_guest" class="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">حساب ضيف: يرى المهام المشتركة معه فقط (من زر «مشاركة» في المهام)، مهما كانت الصلاحيات هنا.</div>
                 <div v-if="user?.is_super_admin" class="rounded-xl bg-navy-50 px-4 py-3 text-sm text-navy">هذا الحساب مدير النظام ويملك كل الصلاحيات تلقائياً.</div>
                 <PermissionMatrix v-else v-model="form.permissions" :catalog="catalog" :scopes="scopes" />
             </div>

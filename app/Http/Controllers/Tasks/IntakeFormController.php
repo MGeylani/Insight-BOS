@@ -95,6 +95,7 @@ class IntakeFormController extends Controller
         if (! $form->is_public && ! $request->user()) {
             return redirect()->guest(route('login'));
         }
+        abort_if(! $form->is_public && $request->user()->is_guest, 403); // internal forms are for the team
         $cf = IntakeForms::customFields($form->list)->keyBy('id');
 
         return Inertia::render('forms/Fill', [
@@ -113,7 +114,7 @@ class IntakeFormController extends Controller
     {
         $form = IntakeForm::where('token', $token)->firstOrFail();
         $user = $request->user();
-        abort_unless($form->is_public || $user, 403);
+        abort_unless($form->is_public || ($user && ! $user->is_guest), 403);
         if (filled($request->input('website'))) { // honeypot: bots fill every field
             return back()->with('form_sent', ['code' => null]);
         }

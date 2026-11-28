@@ -12,11 +12,11 @@ class Comment extends Model
 {
     use SoftDeletes;
 
-    protected $fillable = ['commentable_type', 'commentable_id', 'parent_id', 'user_id', 'body', 'body_text', 'assigned_to'];
+    protected $fillable = ['commentable_type', 'commentable_id', 'parent_id', 'user_id', 'body', 'body_text', 'assigned_to', 'is_internal'];
 
     protected function casts(): array
     {
-        return ['body' => 'array', 'resolved_at' => 'datetime', 'edited_at' => 'datetime'];
+        return ['body' => 'array', 'resolved_at' => 'datetime', 'edited_at' => 'datetime', 'is_internal' => 'boolean'];
     }
 
     public function commentable(): MorphTo

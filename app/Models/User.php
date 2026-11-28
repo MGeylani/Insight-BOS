@@ -31,10 +31,17 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_active' => 'boolean',
             'is_super_admin' => 'boolean',
+            'is_guest' => 'boolean',
             'hourly_cost' => 'decimal:2',
             'capacity_hours' => 'float',
             'work_days' => 'array',
         ];
+    }
+
+    /** Access to clients, projects or lists shared with this person (see Services\Tasks\Access). */
+    public function accessGrants(): HasMany
+    {
+        return $this->hasMany(AccessGrant::class);
     }
 
     public function grants(): HasMany

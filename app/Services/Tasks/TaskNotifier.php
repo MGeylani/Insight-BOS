@@ -47,9 +47,10 @@ class TaskNotifier
     public static function comment(Task $task, Comment $c, array $mentioned): void
     {
         $extra = ['body' => RichText::excerpt($c->body), 'comment_id' => $c->id, 'url' => "/tasks/{$task->id}#comment-{$c->id}"];
-        $done = [];
-        if ($c->assigned_to) {
-            $done = self::send($task, [$c->assigned_to], 'task.comment_assigned', self::actor().' أسند إليك تعليقاً في '.$task->code().': '.$task->title, $extra);
+        // Guests never hear about internal comments: count them as already told.
+        $done = $c->is_internal ? User::where('is_guest', true)->pluck('id')->all() : [];
+        if ($c->assigned_to && ! in_array((int) $c->assigned_to, $done, true)) {
+            $done = array_merge($done, self::send($task, [$c->assigned_to], 'task.comment_assigned', self::actor().' أسند إليك تعليقاً في '.$task->code().': '.$task->title, $extra));
         }
         $done = array_merge($done, self::send($task, array_diff($mentioned, $done), 'task.mentioned', self::actor().' أشار إليك في تعليق على '.$task->code().': '.$task->title, $extra));
         // Repliers also hear about replies in their thread.
