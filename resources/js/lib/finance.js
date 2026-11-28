@@ -29,3 +29,6 @@ export const hours = (minutes) => r2(Number(minutes || 0) / 60);
 
 export const paymentKindLabel = { receipt: 'قبض', refund: 'ردّ' };
 export const accountTypeIcon = { cash: 'Banknote', bank: 'Landmark', wallet: 'Wallet' };
+
+export const expenseStatusTone = { pending: 'amber', approved: 'green', rejected: 'red', cancelled: 'slate' };
+export const settlementTone = { unpaid: 'navy', partial: 'amber', paid: 'green', overdue: 'red', to_reimburse: 'plum', reimbursed: 'green' };

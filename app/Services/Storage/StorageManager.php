@@ -50,6 +50,11 @@ class StorageManager
                 self::folderFor($c, $owner->client), ['عروض الأسعار'])),
             $owner instanceof \App\Models\Invoice => self::remember($c, "client:{$owner->client_id}:invoices", fn () => self::path($driver,
                 self::folderFor($c, $owner->client), ['الفواتير'])),
+            // Expense receipts: the project's folder, else «المصروفات/<YYYY-MM>» under the BOS root.
+            $owner instanceof \App\Models\Expense => $owner->project_id && $owner->project
+                ? self::folderFor($c, $owner->project)
+                : self::remember($c, 'expenses:'.$owner->date->format('Y-m'), fn () => self::path($driver,
+                    self::root($c, $driver), ['المصروفات', $owner->date->format('Y-m')])),
             // Task files go to the project's folder, or to the client's "المهام" folder.
             $owner instanceof Task => $owner->project_id && $owner->project
                 ? self::folderFor($c, $owner->project)
@@ -64,6 +69,9 @@ class StorageManager
     {
         $clientId = $owner instanceof Client ? $owner->id : $owner->getAttribute('client_id');
         $keys = ['root', "client:$clientId", "client:$clientId:contracts", "client:$clientId:quotes", "client:$clientId:tasks", "client:$clientId:invoices"];
+        if ($owner instanceof \App\Models\Expense) {
+            $keys[] = 'expenses:'.$owner->date->format('Y-m');
+        }
         if ($owner instanceof Project) {
             $keys[] = "project:{$owner->id}";
         }

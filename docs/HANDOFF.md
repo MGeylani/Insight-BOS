@@ -20,7 +20,7 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 - **المرحلة 4 (المالية)**، فرع لكل خطوة مبني على الذي قبله (الأول على `phase-3b-notes`)، بنفس القواعد:
   1. `phase-4-invoices` ← الفواتير (من دفعات العقود، العروض المقبولة، الساعات المعتمدة)، PDF، مسودات تلقائية للعقود الشهرية ✅
   2. `phase-4-payments` ← الحسابات النقدية والبنكية والتحويلات، سندات القبض وتسويتها على الفواتير، الاسترداد والعكس، كشف حساب العميل وأعمار الذمم، تذكير المتأخرة ✅
-  3. `phase-4-expenses` ← المصروفات واعتمادها، الموردون وفواتيرهم والمستحقات لهم، السلف والنثريات
+  3. `phase-4-expenses` ← المصروفات واعتمادها، الموردون وفواتيرهم والمستحقات لهم، السلف والنثريات ✅
   4. `phase-4-budgets` ← مراكز التكلفة والميزانيات وبنودها وتنبيه الانحراف، ربحية المشروع
   5. `phase-4-reports` ← التدفق النقدي، الأرباح والخسائر، الربحية (مشروع/عميل/خدمة/موظف)، لوحة المالية، تصدير Excel
 
@@ -149,6 +149,19 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 - **التذكيرات**: `POST /reminders` (`ReminderButton.vue` في صفحة المهمة و«عملي»)، `PATCH /reminders/{id}` (`done` أو `remind_at`)، `DELETE`. الأمر `tasks:reminders` **كل دقيقة** يحوّل المستحق إلى إشعار `task.reminder`. الأمر `tasks:digest` **يومياً 08:30** يرسل لكل شخص ملخص «مهام اليوم والمتأخرة والتعليقات المسندة» مرة واحدة في اليوم وفقط إن وُجد شيء.
 - **Cron مطلوب على الخادم** (موجود منذ المرحلة 2): `* * * * * php artisan schedule:run`.
 - الاختبارات: `tests/Feature/MyWorkTest.php`.
+
+## ما بُني في المصروفات والموردين والسلف (المرحلة 4، الخطوة 3: `phase-4-expenses`)
+
+- الجداول (`2026_12_01_000300_create_expenses_tables.php`): `expense_categories` (`kind` = direct «تكلفة مباشرة» | overhead «مصاريف عامة»؛ `ExpenseCategorySeeder` يضيف تصنيفات الوكالة)، `vendors`، `advances` (رقم `ADV-…`، `petty_cash` | `salary_advance`، من حساب)، `advance_returns` (إلى حساب أو خصم بلا حساب)، `reimbursements`، `expenses` (رقم `EXP-…` عند التقديم، `paid_by` = account | employee | advance | credit، `fx_rate` بتاريخه، `status` pending | approved | rejected | cancelled، `decided_by/at`، `decision_note`، `reimbursement_id`، `vendor_ref`، `due_date` للآجل، مشروع ← العميل منسوخ)، `vendor_payments` (رقم `VP-…`) و`vendor_payment_allocations`. الـ migration يضيف تسلسلي `advance` و`vendor_payment`. morph map: `expense`، `vendor`، `advance`، `vendor_payment`، `reimbursement`.
+- **صلاحية جديدة `finance.expense`** («تقديم المصروفات»): يقدّم الموظف مصروفاته ويرى مصروفاته وعهده فقط، دون بقية المالية (عنصر «مصروفاتي» في القائمة الجانبية لمن لا يملك `finance.view`). أضيفت لقوالب «موظف» و«مدير مشاريع» (+ `finance.approve` assigned) و«مالية» (+ `finance.delete`). القوالب الموجودة في القاعدة لا تتغير: امنحها يدوياً.
+- `App\Services\Finance\Expenses` المصدر الوحيد: `save` (الحساب/العهدة يحددان العملة؛ الآجل يحتاج مورداً واستحقاقاً افتراضياً بعد `vendor_payment_days`=30؛ إدخال لموظف آخر لمن يملك المالية «الكل»؛ إشعار `finance.expense_submitted` للمعتمِدين)، `approve` (**إيصال مرفق إلزامي** `expense_receipt_required`، والعهدة يكفي متبقيها)، `reject` (سبب)، `cancel` (المعلّق يسحبه صاحبه؛ المعتمد تلغيه المالية بسبب ما لم يُعوَّض أو يُسدَّد)، `canDecide` (`finance.approve` all، أو assigned لمدير مشروع المصروف؛ **لا أحد يعتمد مصروفه**)، `canEdit`، `canAttach`، `canCancel`، `approvers`. إشعار `finance.expense_decided` لصاحبه.
+- `App\Services\Finance\Payables`: دفعات الموردين `payVendor`/`allocateBill`/`reverseVendorPayment` (مثل سندات القبض: دفعة لعدة فواتير، والزائد دفعة مقدّمة)، `openBills`، `owedByVendor` (بالدولار)؛ التعويض `reimburse` (مصروفات «دفعها الموظف» المعتمدة، بعملة الحساب) و`reverseReimbursement` و`toReimburse`؛ العهد `giveAdvance`، `returnAdvance`، `reverseAdvance` (فقط بلا مصروفات ولا مرتجعات)، `openAdvances`.
+- `Expense::settlement()` محسوبة: للآجل unpaid | partial | paid | overdue، ولما دفعه الموظف to_reimburse | reimbursed. `Advance::balance()` = المبلغ − المصروفات المعتمدة − المرتجع.
+- **حركات الحسابات** (`Accounts::movements`) صارت تشمل: المصروف المعتمد المدفوع من حساب (بتاريخه)، دفعات الموردين، التعويضات، تسليم العهد، ومرتجعاتها النقدية.
+- المرفقات: `Attachments::TYPES['expense']` بصلاحيات خاصة (`Expenses::canAttach`)، والمجلد: مجلد المشروع، أو `Insight BOS/المصروفات/<YYYY-MM>`.
+- المسارات تحت `/finance`: `expenses` (index بفلاتر الحالة و`to_reimburse` و`unpaid_bills` و`decide=1` «بانتظار اعتمادي»، create `?project_id|vendor_id`، store، show، edit/update، `approve`، `reject`، `cancel`)، `expense-categories` (settings.manage أو finance.edit all)، `vendors` (index/show بـ finance.view؛ store لمن يقدّم المصروفات أيضاً ويعيد JSON للنموذج؛ update/destroy بـ finance.edit؛ `pay` بـ finance.create all)، `vendor-payments/{id}/allocate|reverse`، `advances` (+ `return`، `reverse`)، `reimbursements` (+ `reverse`).
+- الواجهات: `pages/finance/expenses/{Index,Form,Show}.vue` (مدير التصنيفات في Index)، `vendors/{Index,Show}.vue` (دفعة بتوزيع على الفواتير)، `advances/{Index,Show}.vue`، `reimbursements/Index.vue`. تبويبات المالية تظهر حسب الصلاحية.
+- الاختبارات: `tests/Feature/ExpenseTest.php`.
 
 ## ما بُني في المقبوضات والحسابات (المرحلة 4، الخطوة 2: `phase-4-payments`)
 
@@ -291,6 +304,16 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 6. **عدّاد جولات التعديل** المذكور مع طلبات التغيير مؤجل إلى التسليمات وبوابة المراجعة (المرحلة 6)؛ طلب التغيير الآن يحمل أثر التكلفة والوقت فقط.
 7. عرض الميزانية مقصور على من لديه `projects.manage_budget` أو `projects.approve_changes` أو `finance.view`؛ أعضاء الفريق العاديون لا يرونها.
 8. أرشفة المشروع (soft delete) لا تفك ربطه بالعرض/العقد، فلا يمكن إنشاء مشروع جديد من نفس العرض بعد أرشفة مشروعه.
+
+**المرحلة 4 — الخطوة 3 (المصروفات والموردون والسلف):**
+1. **فاتورة المورد = مصروف «آجل»** في جدول المصروفات نفسه (لا جدول منفصل)، بمبلغ إجمالي واحد لا بنود. تُعتمد كأي مصروف ثم تُسدَّد بدفعات المورد.
+2. **كل مصروف يمر بالاعتماد**، حتى ما تدخله المالية؛ ولا يعتمد أحد مصروفه بنفسه (عدا مدير النظام). المدفوع من حساب لا يُنقص الرصيد إلا بعد الاعتماد.
+3. **الإيصال إلزامي قبل الاعتماد** (أي مرفق غير فاشل). يمكن إيقافه من `config/finance.php` (`expense_receipt_required`).
+4. مدير المشروع الذي يملك `finance.approve` بنطاق «المعيّن» يعتمد مصروفات مشاريعه فقط؛ غير المرتبطة بمشروع تعتمدها المالية.
+5. **العهدة النثرية والسلفة في جدول واحد** بنوعين؛ السلفة على الراتب تُسوّى بـ«إرجاع/خصم» بلا حساب حتى يأتي موديول الرواتب. المصروف من عهدة لا يمس رصيد الحساب (المال خرج يوم التسليم).
+6. التعويض بعملة واحدة لكل صرفة (عملة الحساب). مصروفات بعملات مختلفة تُعوَّض كلٌّ من حساب بعملتها.
+7. الموظف يضيف مورداً جديداً من نموذج المصروف (اسم ونوع وهاتف)؛ تعديله وأرشفته للمالية.
+8. لا ضريبة مدخلات منفصلة على المصروفات الآن (المبلغ إجمالي كما في الإيصال).
 
 **المرحلة 4 — الخطوة 2 (المقبوضات والحسابات):**
 1. **السند بعملة الحساب الذي دخله المال**، والتسوية على فاتورة بعملة أخرى تُحسب بسعر صرف يوم السند (أو يُكتب المخصوم يدوياً). فرق سعر الصرف لا يُسجَّل كربح/خسارة منفصلة الآن.

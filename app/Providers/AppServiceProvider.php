@@ -51,6 +51,11 @@ class AppServiceProvider extends ServiceProvider
             'invoice' => \App\Models\Invoice::class,
             'payment' => \App\Models\Payment::class,
             'account' => \App\Models\Account::class,
+            'expense' => \App\Models\Expense::class,
+            'vendor' => \App\Models\Vendor::class,
+            'advance' => \App\Models\Advance::class,
+            'vendor_payment' => \App\Models\VendorPayment::class,
+            'reimbursement' => \App\Models\Reimbursement::class,
         ]);
 
         Password::defaults(fn () => Password::min(10)->letters()->numbers());

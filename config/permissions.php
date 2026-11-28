@@ -30,7 +30,7 @@ return [
         ],
         'finance' => [
             'label' => 'المالية',
-            'actions' => ['view' => 'عرض', 'create' => 'إنشاء', 'edit' => 'تعديل', 'delete' => 'إلغاء', 'approve' => 'اعتماد', 'export' => 'تصدير'],
+            'actions' => ['view' => 'عرض', 'create' => 'إنشاء', 'edit' => 'تعديل', 'delete' => 'إلغاء', 'approve' => 'اعتماد', 'export' => 'تصدير', 'expense' => 'تقديم المصروفات'],
         ],
         'hr' => [
             'label' => 'الموارد البشرية',

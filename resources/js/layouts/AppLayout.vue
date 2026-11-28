@@ -33,7 +33,7 @@ const hideTip = () => (tip.value = null);
 
 const sections = computed(() =>
     navigation
-        .map((s) => ({ ...s, items: s.items.filter((i) => (user.value?.is_guest ? i.guest : !i.perm || can(i.perm))) }))
+        .map((s) => ({ ...s, items: s.items.filter((i) => (user.value?.is_guest ? i.guest : (!i.perm || can(i.perm)) && !(i.unless && can(i.unless)))) }))
         .filter((s) => s.items.length),
 );
 

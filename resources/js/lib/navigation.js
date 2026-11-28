@@ -1,5 +1,5 @@
 import {
-    LayoutDashboard, Users, Briefcase, ListChecks, Wallet, UserRound, Package, MessagesSquare, BarChart3,
+    LayoutDashboard, ReceiptText, Users, Briefcase, ListChecks, Wallet, UserRound, Package, MessagesSquare, BarChart3,
     ShieldCheck, ScrollText, Building2, Coins, Tags, Hash, Cloud, KeyRound, SquareKanban, Sun, Inbox, Gauge, ClipboardCheck, FileInput,
 } from '@lucide/vue';
 
@@ -25,6 +25,8 @@ export const navigation = [
             { label: 'نماذج الاستقبال', href: '/tasks/forms', icon: FileInput, perm: 'tasks.view' },
             { label: 'جداول الساعات', href: '/tasks/timesheets', icon: ClipboardCheck, perm: 'tasks.approve_time' },
             { label: 'المالية', href: '/finance/invoices', match: '/finance', icon: Wallet, perm: 'finance.view' },
+            // Employees without finance access: their own expenses and advances.
+            { label: 'مصروفاتي', href: '/finance/expenses', match: '/finance', icon: ReceiptText, perm: 'finance.expense', unless: 'finance.view' },
             { label: 'الموارد البشرية', icon: UserRound, perm: 'hr.view', soon: true },
             { label: 'الأصول', icon: Package, perm: 'assets.view', soon: true },
             { label: 'التواصل', icon: MessagesSquare, perm: 'comms.view', soon: true },
