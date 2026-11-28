@@ -36,10 +36,10 @@ class InvoiceController extends Controller
         $f = $request->only('search', 'status', 'client', 'project');
 
         $invoices = self::filtered(Invoice::visibleTo($user, 'finance.view'), $f)
-            ->with(['client:id,name', 'owner:id,name', 'items'])
+            ->with(['client:id,name', 'owner:id,name', 'items'])->withPaid()
             ->latest('id')->paginate(30)->withQueryString();
 
-        $open = Invoice::visibleTo($user, 'finance.view')->open()->get();
+        $open = Invoice::visibleTo($user, 'finance.view')->withPaid()->unpaid()->get();
 
         return Inertia::render('finance/invoices/Index', [
             'invoices' => $invoices->through(fn (Invoice $i) => self::row($i)),
@@ -70,8 +70,10 @@ class InvoiceController extends Controller
             ->when($f['status'] ?? null, function ($q, $st) {
                 match ($st) {
                     'draft', 'cancelled' => $q->where('status', $st),
-                    'overdue' => $q->where('status', 'issued')->whereDate('due_date', '<', today()),
-                    default => $q->where('status', 'issued'),
+                    'paid' => $q->paid(),
+                    'partial' => $q->unpaid()->has('allocations'),
+                    'overdue' => $q->unpaid()->whereDate('due_date', '<', today()),
+                    default => $q->unpaid(), // «غير مدفوعة»: everything still owing
                 };
             });
     }
@@ -145,6 +147,13 @@ class InvoiceController extends Controller
                 'missing_rate' => $invoice->isDraft() && ExchangeRates::rateFor($invoice->currency) === null,
             ],
             'files' => Attachments::payload($invoice, $user),
+            'payments' => $invoice->allocations()->with('payment.account:id,name')->get()->map(fn ($a) => [
+                'id' => $a->id, 'amount' => (float) $a->amount, 'payment_amount' => (float) $a->payment_amount,
+                'payment' => [...$a->payment->only('id', 'number', 'currency', 'method'), 'date' => $a->payment->date->toDateString(), 'account' => $a->payment->account?->name],
+            ]),
+            'credits' => $invoice->isIssued() && $invoice->balance() > 0 ? \App\Services\Finance\Payments::credits($invoice->client) : [],
+            'accounts' => \App\Models\Account::where('is_active', true)->orderBy('sort')->orderBy('name')->get(['id', 'name', 'currency']),
+            'methods' => config('finance.payment_methods'),
             'log' => $log->map(fn ($l) => [
                 'id' => $l->id, 'description' => $l->description, 'user' => $l->user?->name, 'created_at' => $l->created_at?->toIso8601String(),
             ]),

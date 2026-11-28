@@ -68,8 +68,8 @@ class XlsxSheet
                 $v = $cell['v'] ?? null;
                 $s = array_merge($style, $cell['s'] ?? []);
             }
-            if ($v instanceof DateTimeInterface) {
-                $s['date'] ??= true;
+            if ($v instanceof DateTimeInterface && ! (is_array($cell) && isset($cell['s']['num']))) {
+                $s['num'] = 'yyyy-mm-dd'; // a row-wide number format never hides a date
             }
             $ref = Xlsx::col($i + 1).$r;
             $sid = $this->book->styleId($s);
