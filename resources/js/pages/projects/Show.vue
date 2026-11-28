@@ -13,6 +13,7 @@ import MilestonesPanel from '@/components/projects/MilestonesPanel.vue';
 import RisksIssuesPanel from '@/components/projects/RisksIssuesPanel.vue';
 import ChangesPanel from '@/components/projects/ChangesPanel.vue';
 import AttachmentsPanel from '@/components/AttachmentsPanel.vue';
+import InvoiceList from '@/components/finance/InvoiceList.vue';
 import { formatDate, formatDateTime } from '@/lib/format';
 import { money, usd } from '@/lib/crm';
 import { projectStatusTone, daysLabel, riskLevelTone } from '@/lib/projects';
@@ -22,6 +23,7 @@ const props = defineProps({
     project: Object, milestones: Array, taskLists: { type: Array, default: null }, risks: Array, issues: Array, changes: Array, log: Array, can: Object, files: Object,
     types: Object, statuses: Object, memberRoles: Array, riskLevels: Object, riskCategories: Object, riskStatuses: Object,
     issueSeverities: Object, issueStatuses: Object, changeSources: Object, changeStatuses: Object, users: Array,
+    invoices: { type: Array, default: () => [] }, invoiceStatuses: { type: Object, default: () => ({}) },
 });
 const page = usePage();
 const p = computed(() => props.project);
@@ -162,6 +164,8 @@ const destroy = () => confirm(`أرشفة المشروع ${p.value.name}؟`) && 
                         <div v-if="p.completed_at" class="text-xs text-emerald-700">اكتمل {{ formatDate(p.completed_at) }}</div>
                     </dl>
                 </div>
+                <InvoiceList v-if="invoiceStatuses.draft" :invoices="invoices" :statuses="invoiceStatuses"
+                    :create-href="can.create_invoice ? `/finance/invoices/create?project_id=${p.id}` : null" />
                 <div v-if="taskLists" class="card p-5">
                     <div class="mb-3 flex items-center gap-2"><ListChecks class="size-4 text-slate-400" /><h3 class="me-auto font-semibold text-navy">قوائم المهام</h3>
                         <Link :href="`/tasks?project=${p.id}`" class="text-xs text-brand hover:underline">كل المهام</Link>

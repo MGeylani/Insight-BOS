@@ -120,6 +120,7 @@ class ContractController extends CrmController
         $user = $request->user();
         $log = ActivityLog::with('user:id,name')->where('subject_type', 'contract')->where('subject_id', $contract->id)->latest('id')->limit(50)->get();
         $total = $contract->totalValue();
+        $invoiceNumbers = \App\Models\Invoice::withTrashed()->whereIn('id', $contract->schedules->pluck('invoice_id')->filter())->pluck('number', 'id');
 
         return Inertia::render('crm/contracts/Show', [
             'contract' => [
@@ -140,6 +141,7 @@ class ContractController extends CrmController
                 'scheduled_total' => $contract->scheduledTotal(),
                 'schedule' => $contract->schedules->map(fn (ContractSchedule $s) => [
                     ...$s->only('id', 'kind', 'title', 'details', 'invoice_id'),
+                    'invoice_number' => $s->invoice_id ? ($invoiceNumbers[$s->invoice_id] ?? null) : null,
                     'status' => $s->displayStatus(),
                     'amount' => $s->amount === null ? null : (float) $s->amount,
                     'percent' => $s->amount !== null && $total > 0 && ! $contract->isRetainer() ? round((float) $s->amount / $total * 100, 1) : null,
@@ -156,6 +158,8 @@ class ContractController extends CrmController
             'copies' => Contract::visibleTo($user)->where('source_contract_id', $contract->id)->get(['id', 'number', 'status']),
             'project' => $this->projectLink($contract->project_id, $user),
             'files' => Attachments::payload($contract, $user),
+            'invoices' => \App\Services\Finance\InvoiceLists::for($user, fn ($q) => $q->where('contract_id', $contract->id)),
+            'invoiceStatuses' => config('finance.invoice_statuses'),
             'log' => $log->map(fn ($l) => [
                 'id' => $l->id, 'description' => $l->description,
                 'user' => $l->user?->name, 'created_at' => $l->created_at?->toIso8601String(),

@@ -5,10 +5,11 @@ import PageHeader from '@/components/PageHeader.vue';
 import Btn from '@/components/Btn.vue';
 import Field from '@/components/Field.vue';
 
-const props = defineProps({ company: Object, quotes: Object, contracts: Object });
+const props = defineProps({ company: Object, quotes: Object, contracts: Object, invoices: Object });
 const form = useForm({ ...props.company });
 const qForm = useForm({ ...props.quotes });
 const cForm = useForm({ ...props.contracts });
+const iForm = useForm({ ...props.invoices });
 const fields = [
     { key: 'name', label: 'الاسم التجاري', required: true },
     { key: 'legal_name', label: 'الاسم القانوني' },
@@ -41,6 +42,23 @@ const fields = [
                 <textarea id="q-terms" v-model="qForm.default_terms" rows="5" class="field-input" placeholder="مثال: دفعة مقدمة 50% عند الموافقة، والباقي عند التسليم." />
             </Field>
             <div class="md:col-span-4"><Btn type="submit" :loading="qForm.processing">حفظ</Btn></div>
+        </form>
+
+        <h2 class="mb-3 mt-8 text-lg font-semibold text-navy">الفواتير</h2>
+        <form class="card grid gap-5 p-6 md:grid-cols-4" @submit.prevent="iForm.put('/settings/invoice-defaults', { preserveScroll: true })">
+            <Field label="مهلة السداد (يوم)" id="i-days" :error="iForm.errors.payment_days" hint="تاريخ الاستحقاق = الإصدار + المهلة، ما لم يُحدَّد غيره." required>
+                <input id="i-days" v-model="iForm.payment_days" type="number" min="0" max="365" dir="ltr" class="field-input text-start" />
+            </Field>
+            <Field label="مسودات العقود الشهرية قبل (يوم)" id="i-lead" :error="iForm.errors.retainer_lead_days" hint="تُنشأ مسودة فاتورة لدفعة العقد الشهري قبل استحقاقها بهذا العدد." required>
+                <input id="i-lead" v-model="iForm.retainer_lead_days" type="number" min="0" max="60" dir="ltr" class="field-input text-start" />
+            </Field>
+            <Field label="طريقة الدفع (تظهر في الفاتورة)" id="i-pay" :error="iForm.errors.payment_details" class="md:col-span-2">
+                <textarea id="i-pay" v-model="iForm.payment_details" rows="4" class="field-input" placeholder="اسم البنك، رقم الحساب / IBAN، أو طرق الدفع المقبولة" />
+            </Field>
+            <Field label="الشروط الافتراضية" id="i-terms" :error="iForm.errors.default_terms" class="md:col-span-4">
+                <textarea id="i-terms" v-model="iForm.default_terms" rows="3" class="field-input" />
+            </Field>
+            <div class="md:col-span-4"><Btn type="submit" :loading="iForm.processing">حفظ</Btn></div>
         </form>
 
         <h2 class="mb-3 mt-8 text-lg font-semibold text-navy">العقود</h2>

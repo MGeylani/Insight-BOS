@@ -100,3 +100,10 @@ Artisan::command('tasks:automations', function () {
 })->purpose('Run time-based task automations');
 
 \Illuminate\Support\Facades\Schedule::command('tasks:automations')->everyFifteenMinutes()->withoutOverlapping();
+
+// Finance: draft invoices for retainer instalments coming due (owner notified to review and issue).
+Artisan::command('finance:retainer-invoices', function () {
+    $this->info('Drafted '.\App\Services\Finance\Invoices::draftRetainers().' invoice(s).');
+})->purpose('Draft invoices for retainer instalments due soon');
+
+\Illuminate\Support\Facades\Schedule::command('finance:retainer-invoices')->dailyAt('07:00')->withoutOverlapping();

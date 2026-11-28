@@ -44,6 +44,7 @@ use App\Http\Controllers\InboxController;
 use App\Http\Controllers\Tasks\TaskController;
 use App\Http\Controllers\Tasks\TaskListController;
 use App\Http\Controllers\Tasks\TaskSettingsController;
+use App\Http\Controllers\Finance\InvoiceController;
 use Illuminate\Support\Facades\Route;
 
 // Intake forms: public ones open without signing in; internal ones send guests to the login page.
@@ -217,6 +218,31 @@ Route::middleware('auth')->group(function () {
         Route::delete('{project}', [ProjectController::class, 'destroy'])->middleware('can:projects.delete')->name('projects.destroy');
     });
 
+    // Finance (phase 4). Record-level checks (own / all) happen in the controllers.
+    Route::prefix('finance')->name('finance.')->group(function () {
+        Route::middleware('can:finance.view')->group(function () {
+            Route::get('invoices', [InvoiceController::class, 'index'])->name('invoices.index');
+            Route::get('invoices/{invoice}', [InvoiceController::class, 'show'])->whereNumber('invoice')->name('invoices.show');
+            Route::get('invoices/{invoice}/pdf', [InvoiceController::class, 'pdf'])->name('invoices.pdf');
+            Route::get('billable-time/{project}', [InvoiceController::class, 'billableTime'])->name('billable-time');
+            Route::get('pending-schedules/{client}', [InvoiceController::class, 'pendingSchedules'])->name('pending-schedules');
+        });
+        Route::middleware('can:finance.create')->group(function () {
+            Route::get('invoices/create', [InvoiceController::class, 'create'])->name('invoices.create');
+            Route::post('invoices', [InvoiceController::class, 'store'])->name('invoices.store');
+            Route::post('invoices/{invoice}/duplicate', [InvoiceController::class, 'duplicate'])->name('invoices.duplicate');
+        });
+        Route::middleware('can:finance.edit')->group(function () {
+            Route::get('invoices/{invoice}/edit', [InvoiceController::class, 'edit'])->name('invoices.edit');
+            Route::put('invoices/{invoice}', [InvoiceController::class, 'update'])->name('invoices.update');
+            Route::post('invoices/{invoice}/issue', [InvoiceController::class, 'issue'])->name('invoices.issue');
+        });
+        Route::middleware('can:finance.delete')->group(function () {
+            Route::post('invoices/{invoice}/cancel', [InvoiceController::class, 'cancel'])->name('invoices.cancel');
+            Route::delete('invoices/{invoice}', [InvoiceController::class, 'destroy'])->name('invoices.destroy');
+        });
+    });
+
     // Tasks. Record-level checks (own / assigned / all) happen in the controllers.
     Route::prefix('tasks')->name('tasks.')->group(function () {
         Route::middleware('can:tasks.view')->group(function () {
@@ -319,6 +345,7 @@ Route::middleware('auth')->group(function () {
             Route::put('company', [CompanyController::class, 'update'])->name('company.update');
             Route::put('quote-defaults', [CompanyController::class, 'updateQuotes'])->name('quote-defaults.update');
             Route::put('contract-defaults', [CompanyController::class, 'updateContracts'])->name('contract-defaults.update');
+            Route::put('invoice-defaults', [CompanyController::class, 'updateInvoices'])->name('invoice-defaults.update');
             Route::get('service-categories', [ServiceCategoryController::class, 'index'])->name('service-categories');
             Route::post('service-categories', [ServiceCategoryController::class, 'store'])->name('service-categories.store');
             Route::put('service-categories/{serviceCategory}', [ServiceCategoryController::class, 'update'])->name('service-categories.update');

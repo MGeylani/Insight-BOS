@@ -33,15 +33,23 @@ class QuotePdf
         ]);
     }
 
+    /** Company block printed on every branded document. @return array<string, string> */
+    public static function company(): array
+    {
+        $company = [];
+        foreach (['name', 'legal_name', 'email', 'phone', 'website', 'address', 'tax_number'] as $f) {
+            $company[$f] = (string) Setting::get("company.$f", $f === 'name' ? 'Insight Media' : '');
+        }
+
+        return $company;
+    }
+
     /** @return array<string, mixed> */
     public static function data(Quote $quote): array
     {
         $quote->loadMissing('items', 'client', 'contact', 'owner');
         $client = $quote->client;
-        $company = [];
-        foreach (['name', 'legal_name', 'email', 'phone', 'website', 'address', 'tax_number'] as $f) {
-            $company[$f] = (string) Setting::get("company.$f", $f === 'name' ? 'Insight Media' : '');
-        }
+        $company = self::company();
         $label = fn ($v) => rtrim(rtrim(number_format((float) $v, 2, '.', ''), '0'), '.');
 
         return [

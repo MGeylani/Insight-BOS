@@ -17,7 +17,12 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
   6. `phase-3b-guests` ← صلاحيات على مستوى العميل/المشروع والضيوف ✅
   إن انقطع العمل: ابدأ من آخر فرع موجود على GitHub واقرأ قسمه أدناه. المستخدم يدمج بالترتيب عبر PR ثم يشغّل `migrate --force` و`db:seed --force` و`config:cache`.
 - **ملاحظات المستخدم بعد تجربة 3ب** في الفرع `phase-3b-notes` (على `main`) ✅ — انظر قسمها أدناه.
-- **المرحلة 4 (المالية)** تبدأ بعدها، فرع لكل خطوة بنفس القواعد.
+- **المرحلة 4 (المالية)**، فرع لكل خطوة مبني على الذي قبله (الأول على `phase-3b-notes`)، بنفس القواعد:
+  1. `phase-4-invoices` ← الفواتير (من دفعات العقود، العروض المقبولة، الساعات المعتمدة)، PDF، مسودات تلقائية للعقود الشهرية ✅
+  2. `phase-4-payments` ← الحسابات النقدية والبنكية والتحويلات، سندات القبض وتسويتها على الفواتير، الاسترداد والعكس، كشف حساب العميل وأعمار الذمم، تذكير المتأخرة
+  3. `phase-4-expenses` ← المصروفات واعتمادها، الموردون وفواتيرهم والمستحقات لهم، السلف والنثريات
+  4. `phase-4-budgets` ← مراكز التكلفة والميزانيات وبنودها وتنبيه الانحراف، ربحية المشروع
+  5. `phase-4-reports` ← التدفق النقدي، الأرباح والخسائر، الربحية (مشروع/عميل/خدمة/موظف)، لوحة المالية، تصدير Excel
 
 ## التقنية والأعراف
 
@@ -145,6 +150,19 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 - **Cron مطلوب على الخادم** (موجود منذ المرحلة 2): `* * * * * php artisan schedule:run`.
 - الاختبارات: `tests/Feature/MyWorkTest.php`.
 
+## ما بُني في الفواتير (المرحلة 4، الخطوة 1: `phase-4-invoices`)
+
+- الجداول (`2026_12_01_000100_create_invoices_tables.php`): `invoices` (عميل، جهة اتصال، مشروع/عقد/عرض اختيارية بنفس العميل، `status` draft | issued | cancelled، `issue_date`، `due_date`، `currency`، `fx_rate`، **`total` مثبّت عند الإصدار**، `payment_details`، `cancel_reason`، `source_invoice_id`)، `invoice_items` (مثل بنود العرض + `contract_schedule_id`)، و`time_entries.invoice_item_id`. morph map: `invoice`. المفردات في `config/finance.php`.
+- الحالات المعروضة: `paid` و`partial` و`overdue` **محسوبة** من المدفوع (`Invoice::paidAmount()` = 0 حتى الخطوة 2) وتاريخ الاستحقاق.
+- `App\Models\Concerns\HasLineAmounts`: حساب البند (gross/discount/net/tax) لبنود الفاتورة.
+- `App\Services\Finance\Invoices` المصدر الوحيد: `saveDraft` (يستبدل البنود، يحجز دفعات العقود `contract_schedules.invoice_id` وقيود الوقت `time_entries.invoice_item_id`، ويرفض ما هو محجوز لفاتورة أخرى أو لعميل آخر)، `issue` (رقم `INV-…`، تثبيت الضريبة وسعر الصرف والإجمالي، تاريخ الإصدار لا يتجاوز اليوم، الاستحقاق = الإصدار + `paymentDays()` إن لم يُحدَّد)، `cancel` (سبب إلزامي، مرفوض إن وُجدت دفعات، يحرّر الدفعات والوقت)، `deleteDraft`، `duplicate`، `blank`/`fromQuote` (المقبول فقط)/`fromSchedules`، `billableTime($project)` (وقت قابل للفوترة غير مفوتر **في أسابيع معتمدة** من جداول الساعات، مجمّعاً لكل مهمة)، `draftRetainers()` (الأمر `finance:retainer-invoices` **يومياً 07:00**: مسودة لكل دفعة عقد شهري ساري تستحق خلال `invoices.retainer_lead_days` يوماً، وإشعار `finance.invoice_draft` لصاحب العقد).
+- PDF: `InvoicePdf` + `resources/views/pdf/invoice.php` (نفس تصميم العرض: فاتورة إلى، الاستحقاق، المرجع، المدفوع والمتبقي، طريقة الدفع). علامة مائية: مسودة / ملغاة / مدفوعة. `QuotePdf::company()` صار مشتركاً.
+- الإعدادات في «بيانات الشركة» ← `PUT /settings/invoice-defaults` (`invoices.payment_days`، `invoices.default_terms`، `invoices.payment_details`، `invoices.retainer_lead_days`).
+- المسارات `/finance/invoices` (`InvoiceController`): index (ملخص المستحق والمتأخر)، create (`?client_id|project_id|quote_id|contract_id&schedule[]=`)، store، show، edit/update (المسودة فقط)، `issue`، `cancel`، `duplicate`، destroy (المسودة)، `pdf`. JSON للمحرر: `GET /finance/pending-schedules/{client}` و`GET /finance/billable-time/{project}` (`?invoice=` لإظهار ما تحجزه المسودة نفسها). الصلاحيات `finance.view|create|edit|delete` بنطاق own (المسؤول/المنشئ) أو all.
+- المرفقات: `Attachments::TYPES['invoice']` (صلاحيات finance)، مجلد `<العميل>/الفواتير`.
+- الواجهات: `pages/finance/invoices/{Index,Edit,Show}.vue`، `components/finance/{FinanceTabs,InvoiceList}.vue`، `lib/finance.js` (ألوان الحالات، حساب البنود). «المالية» في القائمة الجانبية. قوائم الفواتير في صفحات العميل والمشروع والعقد (`App\Services\Finance\InvoiceLists`)، عمود «الفاتورة» وزر «فوترة» لكل دفعة في صفحة العقد، وزر «فاتورة» في العرض المقبول.
+- الاختبارات: `tests/Feature/InvoiceTest.php`.
+
 ## ملاحظات المستخدم بعد تجربة 3ب (`phase-3b-notes`)
 
 - **القائمة الجانبية تُطوى** (سطح المكتب فقط): زر في الترويسة يحوّلها إلى شريط أيقونات بعرض `4.5rem`، واسم العنصر يظهر في تلميح عند مرور الفأرة (عنصر `fixed` كي لا يقصّه تمرير القائمة)، والعدّادات تصبح نقطة على الأيقونة. الاختيار في `localStorage` (`bos.sidebar`). الجوال كما هو (درج).
@@ -261,6 +279,14 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 6. **عدّاد جولات التعديل** المذكور مع طلبات التغيير مؤجل إلى التسليمات وبوابة المراجعة (المرحلة 6)؛ طلب التغيير الآن يحمل أثر التكلفة والوقت فقط.
 7. عرض الميزانية مقصور على من لديه `projects.manage_budget` أو `projects.approve_changes` أو `finance.view`؛ أعضاء الفريق العاديون لا يرونها.
 8. أرشفة المشروع (soft delete) لا تفك ربطه بالعرض/العقد، فلا يمكن إنشاء مشروع جديد من نفس العرض بعد أرشفة مشروعه.
+
+**المرحلة 4 — الخطوة 1 (الفواتير):**
+1. **إجمالي الفاتورة يُخزَّن عند الإصدار** (استثناء من «القيم المحسوبة لا تُخزَّن») لأن الصادرة مقفلة كالرقم وسعر الصرف، وتقارير الذمم تجمعها كثيراً. المسودة تُحسب من بنودها.
+2. **لا تعديل على الصادرة**: الخطأ يُصحَّح بالإلغاء (سبب إلزامي) ثم «نسخة جديدة». لا إشعارات دائنة (credit notes) الآن.
+3. الخصم لكل بند بالنسبة (كالعروض)، لا خصم على مستوى الفاتورة.
+4. **الساعات تُفوتر من الأسابيع المعتمدة فقط**، بسعر ساعة يُدخَل عند الإضافة (لا سعر بيع للساعة محفوظ لكل موظف أو خدمة).
+5. **مسودات العقود الشهرية تلقائية** قبل الاستحقاق بـ 7 أيام (قابلة للتعديل)، وتبقى مسودة حتى يراجعها صاحب العقد ويصدرها. الإرسال بالبريد غير مفعّل (البريد الصادر غير مضبوط)؛ يُنزَّل PDF ويُرسل يدوياً.
+6. الفاتورة الصادرة ملغاة تحرّر دفعات العقد وساعاتها فتُفوتر من جديد.
 
 **ملاحظات ما بعد 3ب:**
 1. **Excel بلا مكتبة** (كاتب xlsx داخلي) بدل PhpSpreadsheet، لأن الحاجة جداول ملوّنة فقط؛ أخف على الاستضافة. إن احتجنا رسوماً بيانية أو صيغاً في Excel لاحقاً نضيف المكتبة.
