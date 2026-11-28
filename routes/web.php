@@ -31,6 +31,7 @@ use App\Http\Controllers\Tasks\DependencyController;
 use App\Http\Controllers\Tasks\WorkloadController;
 use App\Http\Controllers\Tasks\AutomationController;
 use App\Http\Controllers\Tasks\IntakeFormController;
+use App\Http\Controllers\Tasks\AccessController;
 use App\Http\Controllers\Tasks\ProofController;
 use App\Http\Controllers\Tasks\TemplateController;
 use App\Http\Controllers\Tasks\TimesheetController;
@@ -226,6 +227,13 @@ Route::middleware('auth')->group(function () {
             Route::get('automations', [AutomationController::class, 'index'])->name('automations');
             Route::get('forms', [IntakeFormController::class, 'index'])->name('forms');
             Route::get('forms/fields', [IntakeFormController::class, 'fields'])->name('forms.fields');
+            // Sharing (checked per place in the controller: who manages the client / project / list, or users.manage).
+            Route::get('access', [AccessController::class, 'index'])->name('access.index');
+            Route::post('access', [AccessController::class, 'store'])->name('access.store');
+            Route::post('access/invite', [AccessController::class, 'invite'])->middleware('throttle:20,1')->name('access.invite');
+            Route::post('access/link/{user}', [AccessController::class, 'link'])->name('access.link');
+            Route::put('access/{grant}', [AccessController::class, 'update'])->name('access.update');
+            Route::delete('access/{grant}', [AccessController::class, 'destroy'])->name('access.destroy');
             Route::get('{task}/proof/{attachment}', [ProofController::class, 'show'])->whereNumber('task')->name('proof');
             Route::post('proof/{attachment}/comments', [ProofController::class, 'comment'])->middleware('throttle:60,1')->name('proof.comment');
             Route::patch('proof-comments/{comment}', [ProofController::class, 'update'])->name('proof.update');

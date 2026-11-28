@@ -87,7 +87,7 @@ class TaskPresenter
     {
         $lists = TaskList::visibleTo($user)
             ->with(['client:id,name,is_internal,task_prefix', 'project:id,name,number,status'])
-            ->withCount(['tasks as open_count' => fn ($q) => $q->whereNull('completed_at')->whereNull('parent_id')])
+            ->withCount(['tasks as open_count' => fn ($q) => $q->whereNull('completed_at')->whereNull('parent_id')->when($user->is_guest, fn ($w) => $w->where('is_internal', false))])
             ->orderBy('sort')->orderBy('id')->get();
 
         return $lists->groupBy('client_id')->map(function ($rows) {

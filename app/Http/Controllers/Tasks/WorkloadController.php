@@ -86,7 +86,7 @@ class WorkloadController extends Controller
     private function people(User $user): Collection
     {
         $scope = $user->permissionScope('tasks.assign');
-        $q = User::where('is_active', true)->orderBy('name');
+        $q = User::where('is_active', true)->where('is_guest', false)->orderBy('name');
         if ($scope === 'all' || $user->permissionScope('tasks.approve_time') === 'all') {
             return $q->get()->filter(fn (User $u) => $u->hasPermission('tasks.view'))->values();
         }

@@ -26,6 +26,7 @@ class HandleInertiaRequests extends Middleware
                     'name' => $user->name,
                     'email' => $user->email,
                     'is_super_admin' => $user->is_super_admin,
+                    'is_guest' => (bool) $user->is_guest,
                 ] : null,
                 'permissions' => $user ? ($user->is_super_admin ? ['*' => 'all'] : $user->permissionMap()) : [],
             ],

@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
-    Repeat, Eye, EyeOff, Trash2, FolderInput, ListPlus, X, GitBranch, CalendarDays, Clock, Flag, Users, Tag as TagIcon, Milestone, CircleDot, History, Plus, LayoutTemplate,
+    Repeat, Eye, EyeOff, Trash2, FolderInput, ListPlus, X, GitBranch, CalendarDays, Clock, Flag, Users, Tag as TagIcon, Milestone, CircleDot, History, Plus, LayoutTemplate, Lock, LockOpen,
 } from '@lucide/vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Btn from '@/components/Btn.vue';
@@ -131,7 +131,10 @@ const childCan = computed(() => ({ ...props.can, create: props.can.create && t.v
                         </button>
                     </template>
                 </Dropdown>
-                <Dropdown width="w-52">
+                <Btn v-if="can.internal" variant="secondary" size="sm" :title="t.is_internal ? 'داخلية: مخفية عن الضيوف. اضغط لإظهارها لهم' : 'مرئية للضيوف المشاركين. اضغط لجعلها داخلية'" @click="set({ is_internal: !t.is_internal })">
+                    <Lock v-if="t.is_internal" class="size-4 text-amber-600" /><LockOpen v-else class="size-4" /> {{ t.is_internal ? 'داخلية' : '' }}
+                </Btn>
+                <Dropdown v-if="!can.guest" width="w-52">
                     <template #trigger><Btn variant="secondary" size="sm" title="القوالب"><LayoutTemplate class="size-4" /></Btn></template>
                     <template #default="{ close }">
                         <button type="button" class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50" @click="openTpl('save'); close()"><LayoutTemplate class="size-4" /> حفظ كقالب</button>
@@ -204,13 +207,13 @@ const childCan = computed(() => ({ ...props.can, create: props.can.create && t.v
 
                 <AttachmentsPanel :files="files" title="المرفقات" :proof-base="`/tasks/${t.id}/proof`" :hint="t.home.project ? 'تُحفظ في مجلد المشروع' : 'تُحفظ في مجلد مهام العميل'" />
 
-                <TaskComments :task-id="t.id" :comments="comments" :users="users" :uploader="files.policy.connected && files.can_upload ? uploader : null" />
+                <TaskComments :task-id="t.id" :comments="comments" :users="users" :has-guests="t.has_guests" :guest="can.guest" :uploader="files.policy.connected && files.can_upload ? uploader : null" />
             </div>
 
             <div class="space-y-6">
                 <TaskDependencies :task-id="t.id" :deps="dependencies" :editable="can.edit" />
 
-                <TaskTimePanel :task="t" :time="time" :can-track="can.track" />
+                <TaskTimePanel v-if="time" :task="t" :time="time" :can-track="can.track" />
 
                 <div v-if="reminders.length" class="card p-5 text-sm">
                     <h3 class="mb-2 font-semibold text-navy">تذكيراتي لهذه المهمة</h3>
@@ -235,7 +238,7 @@ const childCan = computed(() => ({ ...props.can, create: props.can.create && t.v
                     <p v-if="t.completed_at" class="text-xs text-emerald-700">اكتملت {{ formatDateTime(t.completed_at) }}</p>
                 </div>
 
-                <div class="card p-5">
+                <div v-if="!can.guest" class="card p-5">
                     <h3 class="mb-3 flex items-center gap-2 font-semibold text-navy"><History class="size-4 text-slate-400" /> النشاط</h3>
                     <ol class="relative space-y-3 border-s border-slate-200 ps-4">
                         <li v-for="a in activity" :key="a.id" class="text-sm">

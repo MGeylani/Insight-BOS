@@ -62,6 +62,7 @@ const toggle = (u) => {
                             <td class="text-slate-600">{{ u.template ?? '—' }}</td>
                             <td>
                                 <Badge v-if="u.is_super_admin" tone="navy">مدير النظام · كل الصلاحيات</Badge>
+                                <Badge v-if="u.is_guest" tone="amber">ضيف · يرى ما شوركه فقط</Badge>
                                 <span v-else class="text-slate-600"><span class="num">{{ u.grants_count }}</span> صلاحية</span>
                             </td>
                             <td class="text-slate-500">{{ formatDateTime(u.last_login_at) }}</td>

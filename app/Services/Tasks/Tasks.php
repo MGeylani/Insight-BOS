@@ -112,6 +112,12 @@ class Tasks
             if (array_key_exists('task_type_id', $data)) {
                 $task->task_type_id = self::typeId($data['task_type_id']);
             }
+            if (array_key_exists('is_internal', $data) && (bool) $data['is_internal'] !== $task->is_internal) {
+                // Internal = hidden from guests, with its subtasks.
+                $task->is_internal = (bool) $data['is_internal'];
+                Task::whereIn('id', self::descendantIds($task))->update(['is_internal' => $task->is_internal]);
+                ActivityLogger::log('tasks.internal', $task, $task->is_internal ? 'جُعلت داخلية (مخفية عن الضيوف)' : 'أصبحت مرئية للضيوف المشاركين');
+            }
             foreach (['priority', 'time_estimate_min'] as $f) {
                 if (array_key_exists($f, $data)) {
                     $task->$f = $f === 'priority' ? ($data[$f] ?: 'normal') : $data[$f];

@@ -13,7 +13,11 @@ use Illuminate\Validation\ValidationException;
 /** Threaded comments on tasks: replies are one level deep, a comment can be assigned and resolved. */
 class Comments
 {
-    public static function add(Task $task, User $user, mixed $body, ?int $parentId = null, ?int $assignTo = null): Comment
+    /**
+     * @param  bool|null  $internal  hidden from guests; null = the default: internal when guests can see the
+     *                               task (team talk stays inside unless the writer says otherwise), replies follow their thread.
+     */
+    public static function add(Task $task, User $user, mixed $body, ?int $parentId = null, ?int $assignTo = null, ?bool $internal = null): Comment
     {
         $doc = RichText::normalize($body);
         if (! $doc) {
@@ -31,10 +35,18 @@ class Comments
             throw ValidationException::withMessages(['assigned_to' => 'المستخدم غير موجود.']);
         }
 
-        return DB::transaction(function () use ($task, $user, $doc, $parent, $assignTo) {
+        $internal = match (true) {
+            $user->is_guest => false,
+            $parent !== null => $parent->is_internal || (bool) $internal,
+            $internal !== null => $internal,
+            default => Access::hasGuests($task),
+        };
+
+        return DB::transaction(function () use ($task, $user, $doc, $parent, $assignTo, $internal) {
             $c = Comment::create([
                 'commentable_type' => 'task', 'commentable_id' => $task->id, 'parent_id' => $parent?->id,
                 'user_id' => $user->id, 'body' => $doc, 'body_text' => RichText::toPlain($doc), 'assigned_to' => $assignTo,
+                'is_internal' => $internal,
             ]);
             // Commenting means following.
             $task->watchers()->syncWithoutDetaching([$user->id]);
@@ -97,9 +109,9 @@ class Comments
         $canModerate = $task->isVisibleTo($user, 'tasks.delete');
         $canEditTask = $task->isVisibleTo($user, 'tasks.edit');
         $all = Comment::with(['user:id,name', 'assignee:id,name', 'resolver:id,name'])
-            ->where('commentable_type', 'task')->where('commentable_id', $task->id)->oldest('id')->get();
+            ->where('commentable_type', 'task')->where('commentable_id', $task->id)->when($user->is_guest, fn ($q) => $q->where('is_internal', false))->oldest('id')->get();
         $row = fn (Comment $c) => [
-            'id' => $c->id, 'parent_id' => $c->parent_id, 'body' => $c->body,
+            'id' => $c->id, 'parent_id' => $c->parent_id, 'body' => $c->body, 'is_internal' => $c->is_internal,
             'user' => $c->user?->only('id', 'name'),
             'created_at' => $c->created_at?->toIso8601String(), 'edited_at' => $c->edited_at?->toIso8601String(),
             'assignee' => $c->assignee?->only('id', 'name'),

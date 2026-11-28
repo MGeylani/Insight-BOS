@@ -150,11 +150,12 @@ class TaskController extends Controller
             'list.client:id,name,task_prefix', 'list.project:id,name,number', 'checklists.items.assignee:id,name',
         ]);
         $canEdit = $task->isVisibleTo($user, 'tasks.edit');
+        $guest = (bool) $user->is_guest; // guests: no internal subtasks, time, history or moving between lists
 
-        $children = Task::where('parent_id', $task->id)->with(TaskPresenter::ROW_WITH)
+        $children = Task::where('parent_id', $task->id)->with(TaskPresenter::ROW_WITH)->when($guest, fn ($q) => $q->where('is_internal', false))
             ->withCount(['children', 'children as children_done' => fn ($q) => $q->whereNotNull('completed_at')])
             ->orderBy('position')->orderBy('id')->get();
-        $grand = $children->isEmpty() ? collect() : Task::whereIn('parent_id', $children->pluck('id'))->with(TaskPresenter::ROW_WITH)
+        $grand = $children->isEmpty() ? collect() : Task::whereIn('parent_id', $children->pluck('id'))->with(TaskPresenter::ROW_WITH)->when($guest, fn ($q) => $q->where('is_internal', false))
             ->orderBy('position')->orderBy('id')->get()->groupBy('parent_id');
 
         $parents = [];
@@ -170,6 +171,8 @@ class TaskController extends Controller
                 'description' => $task->description,
                 'watchers' => $task->watchers->map->only('id', 'name')->values(),
                 'watching' => $task->watchers->contains('id', $user->id),
+                'is_internal' => $task->is_internal,
+                'has_guests' => ! $guest && \App\Services\Tasks\Access::hasGuests($task),
                 'creator' => $task->creator?->only('id', 'name'),
                 'parents' => $parents,
                 'home' => [
@@ -193,21 +196,21 @@ class TaskController extends Controller
                 ])->values(),
             ],
             'comments' => Comments::payload($task, $user),
-            'dependencies' => \App\Services\Tasks\Dependencies::payload($task),
+            'dependencies' => $guest ? $this->visibleDeps(\App\Services\Tasks\Dependencies::payload($task), $user) : \App\Services\Tasks\Dependencies::payload($task),
             'customFields' => CustomFields::forTask($task)->map->toUi()->values(),
-            'templates' => \App\Models\TaskTemplate::where('type', 'task')->orderBy('name')->get(['id', 'name', 'type', 'created_by']),
+            'templates' => $guest ? [] : \App\Models\TaskTemplate::where('type', 'task')->orderBy('name')->get(['id', 'name', 'type', 'created_by']),
             'fieldValues' => (object) (CustomFields::valuesFor(collect([$task]))[$task->id] ?? []),
-            'time' => $this->timePayload($task, $user),
+            'time' => $guest ? null : $this->timePayload($task, $user),
             'reminders' => Reminder::where('user_id', $user->id)->where('task_id', $task->id)->whereNull('done_at')->orderBy('remind_at')->get()
                 ->map(fn ($r) => ['id' => $r->id, 'remind_at' => $r->remind_at->format('Y-m-d\TH:i'), 'note' => $r->note, 'sent' => $r->sent_at !== null]),
             'files' => Attachments::payload($task, $user),
-            'activity' => ActivityLog::with('user:id,name')->where('subject_type', 'task')->where('subject_id', $task->id)
+            'activity' => $guest ? [] : ActivityLog::with('user:id,name')->where('subject_type', 'task')->where('subject_id', $task->id)
                 ->latest('id')->limit(100)->get()
                 ->map(fn ($l) => ['id' => $l->id, 'action' => $l->action, 'description' => $l->description, 'user' => $l->user?->name, 'created_at' => $l->created_at?->toIso8601String()]),
             'statuses' => $task->list?->statuses()->get()->map->toUi()->values() ?? [],
             'milestones' => $task->project_id ? $task->project?->milestones()->get(['id', 'title'])->values() : [],
-            'moveLists' => $sameClient->map(fn ($l) => ['id' => $l->id, 'name' => $l->name, 'project' => $l->project?->name])->values(),
-            'linkLists' => TaskList::visibleTo($user)->with(['client:id,name', 'project:id,name'])->orderBy('client_id')->orderBy('sort')->limit(500)->get()
+            'moveLists' => $guest ? [] : $sameClient->map(fn ($l) => ['id' => $l->id, 'name' => $l->name, 'project' => $l->project?->name])->values(),
+            'linkLists' => $guest ? [] : TaskList::visibleTo($user)->with(['client:id,name', 'project:id,name'])->orderBy('client_id')->orderBy('sort')->limit(500)->get()
                 ->map(fn ($l) => ['id' => $l->id, 'name' => $l->name, 'client' => $l->client?->name, 'project' => $l->project?->name])->values(),
             ...TaskPresenter::vocab(),
             'can' => [
@@ -215,9 +218,20 @@ class TaskController extends Controller
                 'assign' => $task->isVisibleTo($user, 'tasks.assign'),
                 'delete' => $task->isVisibleTo($user, 'tasks.delete'),
                 'create' => $user->hasPermission('tasks.create'),
-                'track' => $user->hasPermission('tasks.track_time'),
+                'track' => ! $guest && $user->hasPermission('tasks.track_time'),
+                'internal' => ! $guest && $canEdit,
+                'guest' => $guest,
             ],
         ]);
+    }
+
+    /** Dependencies limited to tasks the (guest) user can see. */
+    private function visibleDeps(array $deps, User $user): array
+    {
+        $ids = collect($deps)->flatten(1)->pluck('id')->filter()->all();
+        $ok = Task::visibleTo($user)->whereIn('tasks.id', $ids)->pluck('tasks.id')->all();
+
+        return array_map(fn ($rows) => array_values(array_filter((array) $rows, fn ($r) => in_array($r['id'] ?? null, $ok))), $deps);
     }
 
     /** Time on this task: everyone's total, and the entries the user may see (own, or all with track_time = all). */
@@ -279,8 +293,10 @@ class TaskController extends Controller
         $this->authorizeRecord($task, 'tasks.edit');
         $data = $request->validate([
             'title' => ['sometimes', 'required', 'string', 'max:255'],
+            'is_internal' => ['sometimes', 'boolean'],
             ...$this->fieldRules(),
         ]);
+        abort_if(array_key_exists('is_internal', $data) && $request->user()->is_guest, 403);
         $people = array_intersect_key($data, array_flip(['assignees', 'watchers', 'tags']));
         if (array_key_exists('assignees', $people)) {
             $this->authorizeRecord($task, 'tasks.assign');
@@ -444,7 +460,10 @@ class TaskController extends Controller
             $newList = TaskList::canCreateFor($user, TaskLists::internalClient(), null);
         }
 
+        $type = ! empty($location['list']) ? 'list' : (! empty($location['project']) ? 'project' : (! empty($location['client']) ? 'client' : null));
+
         return ['create' => $create, 'manage_list' => $manage, 'new_list' => $newList, 'edit' => $user->hasPermission('tasks.edit'),
-            'assign' => $user->hasPermission('tasks.assign'), 'delete' => $user->hasPermission('tasks.delete')];
+            'assign' => $user->hasPermission('tasks.assign'), 'delete' => $user->hasPermission('tasks.delete'),
+            'share' => $type !== null && \App\Services\Tasks\Access::canShare($user, $type, (int) $location[$type])];
     }
 }

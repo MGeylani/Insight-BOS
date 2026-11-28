@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Tasks\Access;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -35,7 +36,7 @@ class Task extends Model
             'description' => 'array',
             'recurrence' => 'array',
             'start_at' => 'datetime', 'due_at' => 'datetime', 'completed_at' => 'datetime',
-            'start_has_time' => 'boolean', 'due_has_time' => 'boolean',
+            'start_has_time' => 'boolean', 'due_has_time' => 'boolean', 'is_internal' => 'boolean',
             'depth' => 'integer', 'seq' => 'integer', 'time_estimate_min' => 'integer', 'position' => 'float',
         ];
     }
@@ -48,44 +49,76 @@ class Task extends Model
                 ->orWhereIn('id', DB::table('project_members')->select('project_id')->where('user_id', $user->id)));
     }
 
+    /**
+     * Tasks the user can see (or edit, …): by their permission scope, plus clients / projects / lists shared
+     * with them (Services\Tasks\Access). Guests: only shared places and their own tasks, never internal ones.
+     */
     public function scopeVisibleTo(Builder $query, User $user, string $permission = 'tasks.view'): Builder
     {
         $scope = $user->permissionScope($permission);
+        $levels = Access::levels($permission);
+        if ($user->is_guest) {
+            return $query->where('tasks.is_internal', false)->where(function (Builder $q) use ($user, $permission, $levels) {
+                $q->whereRaw('1 = 0');
+                if ($permission === 'tasks.view') {
+                    $q->orWhere('tasks.created_by', $user->id)->orWhereIn('tasks.id', DB::table('task_assignees')->select('task_id')->where('user_id', $user->id));
+                } elseif ($permission === 'tasks.edit') {
+                    $q->orWhere('tasks.created_by', $user->id);
+                }
+                Access::orTasks($q, $user, $levels);
+            });
+        }
         if ($scope === 'all') {
             return $query;
         }
-        if ($scope === null) {
+        if ($scope === null && ! $levels) {
             return $query->whereRaw('1 = 0');
         }
 
-        return $query->where(function (Builder $q) use ($user, $scope) {
-            $q->where('tasks.created_by', $user->id)
-                ->orWhereIn('tasks.id', DB::table('task_assignees')->select('task_id')->where('user_id', $user->id));
-            if ($scope === 'assigned') {
-                $q->orWhereIn('tasks.id', DB::table('task_watchers')->select('task_id')->where('user_id', $user->id))
-                    ->orWhereIn('tasks.project_id', self::projectsOf($user));
+        return $query->where(function (Builder $q) use ($user, $scope, $levels) {
+            if ($scope === null) {
+                $q->whereRaw('1 = 0');
+            } else {
+                $q->where('tasks.created_by', $user->id)
+                    ->orWhereIn('tasks.id', DB::table('task_assignees')->select('task_id')->where('user_id', $user->id));
+                if ($scope === 'assigned') {
+                    $q->orWhereIn('tasks.id', DB::table('task_watchers')->select('task_id')->where('user_id', $user->id))
+                        ->orWhereIn('tasks.project_id', self::projectsOf($user));
+                }
             }
+            Access::orTasks($q, $user, $levels);
         });
     }
 
     public function isVisibleTo(User $user, string $permission = 'tasks.view'): bool
     {
         $scope = $user->permissionScope($permission);
+        $levels = Access::levels($permission);
+        if ($user->is_guest) {
+            if ($this->is_internal) {
+                return false;
+            }
+            $own = (int) $this->created_by === $user->id;
+            if (($permission === 'tasks.view' && ($own || $this->assignees()->where('users.id', $user->id)->exists())) || ($permission === 'tasks.edit' && $own)) {
+                return true;
+            }
+
+            return Access::coversTask($this, $user, $levels);
+        }
         if ($scope === 'all') {
             return true;
         }
-        if ($scope === null) {
-            return false;
-        }
-        if ((int) $this->created_by === $user->id || $this->assignees()->where('users.id', $user->id)->exists()) {
-            return true;
-        }
-        if ($scope !== 'assigned') {
-            return false;
+        if ($scope !== null) {
+            if ((int) $this->created_by === $user->id || $this->assignees()->where('users.id', $user->id)->exists()) {
+                return true;
+            }
+            if ($scope === 'assigned' && ($this->watchers()->where('users.id', $user->id)->exists()
+                || ($this->project_id && self::projectsOf($user)->where('id', $this->project_id)->exists()))) {
+                return true;
+            }
         }
 
-        return $this->watchers()->where('users.id', $user->id)->exists()
-            || ($this->project_id && self::projectsOf($user)->where('id', $this->project_id)->exists());
+        return Access::coversTask($this, $user, $levels);
     }
 
     public function scopeOpen(Builder $query): Builder

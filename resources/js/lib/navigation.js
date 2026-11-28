@@ -5,13 +5,14 @@ import {
 
 // `match` widens the active state to a whole section (e.g. every /crm page).
 // `soon: true` items are planned modules (later phases) shown greyed out.
+// Guests (clients sharing a project) see only the items marked `guest: true`.
 export const navigation = [
     {
         label: null,
         items: [
             { label: 'لوحة القيادة', href: '/dashboard', icon: LayoutDashboard },
-            { label: 'عملي', href: '/my-work', match: '/my-work', icon: Sun, perm: 'tasks.view' },
-            { label: 'الوارد', href: '/inbox', icon: Inbox, badge: 'notifications_unread' },
+            { label: 'عملي', href: '/my-work', match: '/my-work', icon: Sun, perm: 'tasks.view', guest: true },
+            { label: 'الوارد', href: '/inbox', icon: Inbox, badge: 'notifications_unread', guest: true },
         ],
     },
     {
@@ -19,7 +20,7 @@ export const navigation = [
         items: [
             { label: 'العملاء والمبيعات', href: '/crm/leads', match: '/crm', icon: Users, perm: 'crm.view' },
             { label: 'المشاريع', href: '/projects', match: '/projects', icon: Briefcase, perm: 'projects.view' },
-            { label: 'المهام', href: '/tasks', icon: ListChecks, perm: 'tasks.view' },
+            { label: 'المهام', href: '/tasks', icon: ListChecks, perm: 'tasks.view', guest: true },
             { label: 'ضغط العمل', href: '/tasks/workload', icon: Gauge, perm: 'tasks.view' },
             { label: 'نماذج الاستقبال', href: '/tasks/forms', icon: FileInput, perm: 'tasks.view' },
             { label: 'جداول الساعات', href: '/tasks/timesheets', icon: ClipboardCheck, perm: 'tasks.approve_time' },
