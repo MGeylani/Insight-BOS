@@ -27,6 +27,7 @@ use App\Http\Controllers\Settings\StorageController;
 use App\Http\Controllers\Tasks\ChecklistController;
 use App\Http\Controllers\Tasks\CommentController;
 use App\Http\Controllers\Tasks\CustomFieldController;
+use App\Http\Controllers\Tasks\DependencyController;
 use App\Http\Controllers\Tasks\TaskTypeController;
 use App\Http\Controllers\Tasks\SavedViewController;
 use App\Http\Controllers\Tasks\MyWorkController;
@@ -205,6 +206,7 @@ Route::middleware('auth')->group(function () {
         Route::middleware('can:tasks.view')->group(function () {
             Route::get('/', [TaskController::class, 'index'])->name('index');
             Route::get('export', [TaskController::class, 'export'])->name('export');
+            Route::get('lookup', [DependencyController::class, 'lookup'])->name('lookup');
             Route::post('views', [SavedViewController::class, 'store'])->name('views.store');
             Route::put('views/{view}', [SavedViewController::class, 'update'])->name('views.update');
             Route::delete('views/{view}', [SavedViewController::class, 'destroy'])->name('views.destroy');
@@ -240,6 +242,8 @@ Route::middleware('auth')->group(function () {
             Route::put('fields/{field}', [CustomFieldController::class, 'update'])->name('fields.update');
             Route::delete('fields/{field}', [CustomFieldController::class, 'destroy'])->name('fields.destroy');
             Route::put('{task}/fields/{field}', [CustomFieldController::class, 'setValue'])->name('fields.value');
+            Route::post('{task}/dependencies', [DependencyController::class, 'store'])->name('dependencies.store');
+            Route::delete('dependencies/{dependency}', [DependencyController::class, 'destroy'])->name('dependencies.destroy');
         });
         Route::middleware('can:tasks.delete')->group(function () {
             Route::delete('{task}', [TaskController::class, 'destroy'])->name('destroy');

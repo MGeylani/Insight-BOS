@@ -82,7 +82,14 @@ export function dateParams(prefix, v) {
 }
 
 export function patchTask(id, data, opts = {}) {
-    router.patch(`/tasks/${id}`, data, { ...keep, ...opts });
+    router.patch(`/tasks/${id}`, data, {
+        ...keep, ...opts,
+        // Closing a task that waits on open tasks asks first, then sends it again with force.
+        onError: (errors) => {
+            if (errors.blocked && !data.force && confirm(`${errors.blocked}\n\nإغلاقها رغم ذلك؟`)) patchTask(id, { ...data, force: true }, opts);
+            else opts.onError?.(errors);
+        },
+    });
 }
 
 /** Plain text of a rich-text document (paragraph per line). */

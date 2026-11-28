@@ -33,7 +33,7 @@ function onEnd(evt) {
         if (to.fieldDrop) { router.put(`/tasks/${id}/fields/${to.fieldDrop.field}`, { value: to.fieldDrop.value }, keep); return; }
         const payload = to.drop?.(task, from?.key);
         if (!payload) { router.reload({ only: ['tasks'] }); return; } // not a droppable column
-        patchTask(id, payload);
+        patchTask(id, payload, { onError: () => router.reload({ only: ['tasks'] }) });
     } else if (props.manual && evt.oldIndex !== evt.newIndex) {
         const before = to.rows[evt.newIndex - 1]?.position ?? null;
         const after = to.rows[evt.newIndex + 1]?.position ?? null;

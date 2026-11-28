@@ -86,3 +86,10 @@ Artisan::command('tasks:digest', function () {
 })->purpose('Morning summary of due and overdue tasks');
 
 \Illuminate\Support\Facades\Schedule::command('tasks:digest')->dailyAt('08:30')->withoutOverlapping();
+
+// Recurring tasks "by schedule": the next instance appears on the current one's due date, done or not.
+Artisan::command('tasks:recurring', function () {
+    $this->info('Created '.\App\Services\Tasks\Recurrence::runScheduled().' recurring task(s).');
+})->purpose('Create the next instance of scheduled recurring tasks');
+
+\Illuminate\Support\Facades\Schedule::command('tasks:recurring')->dailyAt('00:10')->withoutOverlapping();

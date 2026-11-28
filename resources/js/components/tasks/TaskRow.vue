@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
-import { ChevronLeft, ChevronDown, GitBranch, CircleCheck, Circle, Plus, MessageSquare } from '@lucide/vue';
+import { ChevronLeft, ChevronDown, GitBranch, CircleCheck, Circle, Plus, MessageSquare, Hourglass, Repeat } from '@lucide/vue';
 import StatusPill from './StatusPill.vue';
 import PriorityPicker from './PriorityPicker.vue';
 import PeoplePicker from './PeoplePicker.vue';
@@ -45,6 +45,8 @@ const toggleDone = () => {
             <TypeIcon :types="types" :type-id="task.type_id" />
             <Link :href="`/tasks/${task.id}`" class="min-w-0 truncate font-medium hover:text-brand" :class="task.completed ? 'text-slate-400 line-through' : 'text-slate-800'">{{ task.title }}</Link>
             <span class="num shrink-0 text-[11px] text-slate-400" dir="ltr">{{ task.code }}</span>
+            <Hourglass v-if="task.blocked && !task.completed" class="size-3.5 shrink-0 text-amber-600" title="بانتظار مهام لم تُغلق" />
+            <Repeat v-if="task.recurrence" class="size-3.5 shrink-0 text-plum" :title="task.recurrence_label" />
             <span v-if="task.children_count" class="flex shrink-0 items-center gap-0.5 text-[11px] text-slate-400" title="مهام فرعية"><GitBranch class="size-3" /><span class="num">{{ task.children_done }}/{{ task.children_count }}</span></span>
             <span v-if="task.comments_count" class="flex shrink-0 items-center gap-0.5 text-[11px] text-slate-400" title="تعليقات"><MessageSquare class="size-3" /><span class="num">{{ task.comments_count }}</span></span>
             <span v-if="showLocation && task.list" class="hidden shrink-0 truncate text-[11px] text-slate-400 lg:inline">· {{ task.list.name }}</span>

@@ -60,6 +60,7 @@ class Tasks
                 'status_id' => $status->id,
                 'priority' => $data['priority'] ?? 'normal',
                 'time_estimate_min' => $data['time_estimate_min'] ?? null,
+                'recurrence' => Recurrence::clean($data['recurrence'] ?? null),
                 'position' => self::nextPosition($list->id, $parent?->id),
                 'created_by' => $user->id,
             ]);
@@ -94,6 +95,10 @@ class Tasks
         return DB::transaction(function () use ($task, $data) {
             $oldMilestone = $task->project_milestone_id;
             $oldDoc = $task->description;
+            $oldDue = $task->due_at?->copy();
+            if (array_key_exists('recurrence', $data)) {
+                $task->recurrence = Recurrence::clean($data['recurrence']);
+            }
             if (array_key_exists('title', $data)) {
                 $task->title = trim($data['title']);
             }
@@ -119,7 +124,14 @@ class Tasks
             }
             self::fillDates($task, $data);
             if (array_key_exists('status_id', $data) && (int) $data['status_id'] !== (int) $task->status_id) {
-                self::applyStatus($task, self::statusFor($task->list, $data['status_id']));
+                $status = self::statusFor($task->list, $data['status_id']);
+                // Closing a task that still waits on open tasks needs a confirmation (force).
+                if ($status->isComplete() && ! $task->completed_at && empty($data['force'])
+                    && ($blockers = Dependencies::openBlockers($task))->isNotEmpty()) {
+                    throw ValidationException::withMessages(['blocked' => 'المهمة بانتظار مهام لم تُغلق بعد: '
+                        .$blockers->map(fn ($b) => $b->code().' '.$b->title)->implode('، ')]);
+                }
+                self::applyStatus($task, $status);
             }
 
             $entry = self::describeChanges($task, $task->getDirty());
@@ -135,6 +147,12 @@ class Tasks
             }
             if ($task->wasChanged('due_at')) {
                 TaskNotifier::dueChanged($task);
+                if ($oldDue && $task->due_at) {
+                    Dependencies::shiftDependents($task, (int) $oldDue->diffInMinutes($task->due_at, false));
+                }
+            }
+            if ($task->wasChanged('completed_at') && $task->completed_at && ($task->recurrence['on'] ?? null) === 'complete') {
+                Recurrence::spawn($task);
             }
             if ($task->wasChanged(['completed_at', 'project_milestone_id'])) {
                 self::syncMilestone($task->project_milestone_id);
@@ -448,6 +466,11 @@ class Tasks
         $changes = [];
         $parts = [];
         foreach ($dirty as $field => $to) {
+            if ($field === 'recurrence') {
+                $parts[] = $to ? 'تكرار: '.Recurrence::label($task->recurrence) : 'إلغاء التكرار';
+
+                continue;
+            }
             if (in_array($field, ['description_text', 'completed_at', 'start_has_time', 'due_has_time', 'position', 'updated_at'], true)) {
                 continue;
             }

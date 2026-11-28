@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SavedView extends Model
 {
-    public const TYPES = ['list', 'board', 'calendar', 'table'];
+    public const TYPES = ['list', 'board', 'calendar', 'table', 'gantt'];
 
     protected $fillable = ['owner_id', 'name', 'type', 'location_type', 'location_id', 'config', 'is_shared', 'sort'];
 
