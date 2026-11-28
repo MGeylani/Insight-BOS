@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
-import { Pencil, Send, FileDown, Eye, CheckCircle2, XCircle, Ban, Copy, Trash2, FileSignature, Briefcase, Building2, Handshake, UserRound, CalendarDays, AlertTriangle } from '@lucide/vue';
+import { Pencil, Send, FileDown, Eye, CheckCircle2, XCircle, Ban, Copy, Trash2, FileSignature, Receipt, Briefcase, Building2, Handshake, UserRound, CalendarDays, AlertTriangle } from '@lucide/vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import Btn from '@/components/Btn.vue';
@@ -61,6 +61,7 @@ const open = computed(() => ['sent', 'expired'].includes(q.value.status));
                 </template>
                 <Btn v-if="(open || q.status === 'rejected') && q.can_edit" variant="ghost" title="إلغاء العرض" @click="cancel"><Ban class="size-4" /></Btn>
                 <Btn v-if="['accepted', 'sent', 'expired'].includes(q.status) && can('crm.create')" :variant="q.status === 'accepted' ? 'primary' : 'secondary'" :href="`/crm/contracts/create?quote_id=${q.id}`"><FileSignature class="size-4" /> إنشاء عقد</Btn>
+                <Btn v-if="q.status === 'accepted' && can('finance.create')" variant="secondary" :href="`/finance/invoices/create?quote_id=${q.id}`"><Receipt class="size-4" /> فاتورة</Btn>
                 <Btn v-if="q.status === 'accepted' && !project && can('projects.create')" :href="`/projects/create?quote_id=${q.id}`"><Briefcase class="size-4" /> تحويل إلى مشروع</Btn>
                 <Btn v-if="q.status !== 'draft' && can('crm.create')" variant="ghost" title="نسخة جديدة" @click="duplicate"><Copy class="size-4" /> نسخة جديدة</Btn>
                 <Btn v-if="q.can_delete" variant="ghost" title="حذف المسودة" @click="destroy"><Trash2 class="size-4" /></Btn>

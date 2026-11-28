@@ -33,6 +33,7 @@ class Attachments
         'contract' => [Contract::class, 'crm'],
         'quote' => [Quote::class, 'crm'],
         'task' => [Task::class, 'tasks'],
+        'invoice' => [\App\Models\Invoice::class, 'finance'],
     ];
 
     private const TEMP_DIR = 'attachment-uploads';

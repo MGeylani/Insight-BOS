@@ -26,6 +26,12 @@ class CompanyController extends Controller
         return Inertia::render('settings/Company', [
             'company' => $values,
             'quotes' => ['validity_days' => Quotes::validityDays(), 'default_terms' => Quotes::defaultTerms() ?? ''],
+            'invoices' => [
+                'payment_days' => \App\Services\Finance\Invoices::paymentDays(),
+                'default_terms' => \App\Services\Finance\Invoices::defaultTerms() ?? '',
+                'payment_details' => \App\Services\Finance\Invoices::defaultPaymentDetails() ?? '',
+                'retainer_lead_days' => (int) (Setting::get('invoices.retainer_lead_days') ?: config('finance.retainer_lead_days', 7)),
+            ],
             'contracts' => ['terms_project' => Contracts::defaultTerms('project') ?? '', 'terms_retainer' => Contracts::defaultTerms('retainer') ?? ''],
         ]);
     }
@@ -61,6 +67,23 @@ class CompanyController extends Controller
         ActivityLogger::log('settings.quotes', null, 'تعديل إعدادات عروض الأسعار', $data);
 
         return back()->with('success', 'تم حفظ إعدادات عروض الأسعار.');
+    }
+
+    /** Invoice defaults: payment days, terms, bank details, retainer lead days. */
+    public function updateInvoices(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'payment_days' => ['required', 'integer', 'between:0,365'],
+            'default_terms' => ['nullable', 'string', 'max:10000'],
+            'payment_details' => ['nullable', 'string', 'max:5000'],
+            'retainer_lead_days' => ['required', 'integer', 'between:0,60'],
+        ]);
+        foreach ($data as $k => $v) {
+            Setting::put("invoices.$k", $v ?? '');
+        }
+        ActivityLogger::log('settings.invoices', null, 'تعديل إعدادات الفواتير');
+
+        return back()->with('success', 'تم حفظ إعدادات الفواتير.');
     }
 
     /** Default terms text for new contracts, one per contract type. */

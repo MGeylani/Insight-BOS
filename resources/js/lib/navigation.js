@@ -24,7 +24,7 @@ export const navigation = [
             { label: 'ضغط العمل', href: '/tasks/workload', icon: Gauge, perm: 'tasks.view' },
             { label: 'نماذج الاستقبال', href: '/tasks/forms', icon: FileInput, perm: 'tasks.view' },
             { label: 'جداول الساعات', href: '/tasks/timesheets', icon: ClipboardCheck, perm: 'tasks.approve_time' },
-            { label: 'المالية', icon: Wallet, perm: 'finance.view', soon: true },
+            { label: 'المالية', href: '/finance/invoices', match: '/finance', icon: Wallet, perm: 'finance.view' },
             { label: 'الموارد البشرية', icon: UserRound, perm: 'hr.view', soon: true },
             { label: 'الأصول', icon: Package, perm: 'assets.view', soon: true },
             { label: 'التواصل', icon: MessagesSquare, perm: 'comms.view', soon: true },

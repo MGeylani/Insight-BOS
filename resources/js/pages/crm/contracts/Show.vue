@@ -13,6 +13,7 @@ import Modal from '@/components/Modal.vue';
 import Field from '@/components/Field.vue';
 import CrmTabs from '@/components/crm/CrmTabs.vue';
 import AttachmentsPanel from '@/components/AttachmentsPanel.vue';
+import InvoiceList from '@/components/finance/InvoiceList.vue';
 import { useAuth } from '@/lib/auth';
 import { formatDate, formatDateTime, formatNumber } from '@/lib/format';
 import { money, contractStatusTone, scheduleStatusTone } from '@/lib/crm';
@@ -20,6 +21,7 @@ import { money, contractStatusTone, scheduleStatusTone } from '@/lib/crm';
 const props = defineProps({
     contract: Object, copies: Array, log: Array, statuses: Object, types: Object,
     scheduleStatuses: Object, billingTimings: Object, oppStages: Object, project: Object, files: Object,
+    invoices: { type: Array, default: () => [] }, invoiceStatuses: { type: Object, default: () => ({}) },
 });
 const { can } = useAuth();
 const page = usePage();
@@ -138,11 +140,12 @@ const btnLink = 'inline-flex items-center gap-2 rounded-xl border border-slate-3
                 <div class="card overflow-hidden">
                     <div class="flex items-center gap-2 border-b border-slate-100 px-5 py-3.5">
                         <Wallet class="size-4 text-emerald-600" /><h3 class="me-auto font-semibold text-navy">جدول الدفعات</h3>
-                        <span class="text-xs text-slate-500">تُفوتر الدفعات من موديول المالية (المرحلة 4).</span>
+                        <Link v-if="c.status !== 'draft' && can('finance.create') && payments.some((p) => !p.invoice_id && ['pending', 'overdue'].includes(p.status))"
+                            :href="`/finance/invoices/create?contract_id=${c.id}`" class="text-xs text-brand hover:underline">فوترة الدفعة التالية</Link>
                     </div>
                     <div class="overflow-x-auto">
                         <table v-if="payments.length" class="tbl">
-                            <thead><tr><th class="w-8">#</th><th>البيان</th><th>{{ retainer ? 'الفترة' : 'الاستحقاق' }}</th><th>المبلغ</th><th>الحالة</th></tr></thead>
+                            <thead><tr><th class="w-8">#</th><th>البيان</th><th>{{ retainer ? 'الفترة' : 'الاستحقاق' }}</th><th>المبلغ</th><th>الحالة</th><th v-if="can('finance.view')">الفاتورة</th></tr></thead>
                             <tbody>
                                 <tr v-for="(p, i) in payments" :key="p.id" :class="{ 'opacity-50': p.status === 'cancelled' }">
                                     <td class="num text-slate-400">{{ i + 1 }}</td>
@@ -153,9 +156,14 @@ const btnLink = 'inline-flex items-center gap-2 rounded-xl border border-slate-3
                                     </td>
                                     <td class="num whitespace-nowrap font-semibold">{{ formatNumber(p.amount) }} <span v-if="p.percent !== null" class="text-xs font-normal text-slate-400">({{ formatNumber(p.percent, 1) }}%)</span></td>
                                     <td><Badge :tone="scheduleStatusTone[p.status]">{{ p.status === 'done' ? 'مسددة' : scheduleStatuses[p.status] }}</Badge></td>
+                                    <td v-if="can('finance.view')" class="whitespace-nowrap text-xs">
+                                        <Link v-if="p.invoice_id" :href="`/finance/invoices/${p.invoice_id}`" class="text-brand hover:underline">{{ p.invoice_number ?? 'مسودة' }}</Link>
+                                        <Link v-else-if="c.status !== 'draft' && ['pending', 'overdue'].includes(p.status) && can('finance.create')" :href="`/finance/invoices/create?contract_id=${c.id}&schedule[]=${p.id}`" class="text-brand hover:underline">فوترة</Link>
+                                        <span v-else class="text-slate-400">—</span>
+                                    </td>
                                 </tr>
                             </tbody>
-                            <tfoot><tr class="font-bold text-navy"><td></td><td>المجموع</td><td></td><td class="num">{{ money(c.scheduled_total, c.currency) }}</td><td></td></tr></tfoot>
+                            <tfoot><tr class="font-bold text-navy"><td></td><td>المجموع</td><td></td><td class="num">{{ money(c.scheduled_total, c.currency) }}</td><td></td><td v-if="can('finance.view')"></td></tr></tfoot>
                         </table>
                         <p v-else class="px-5 py-8 text-center text-sm text-slate-500">لا توجد دفعات.</p>
                     </div>
@@ -205,6 +213,7 @@ const btnLink = 'inline-flex items-center gap-2 rounded-xl border border-slate-3
                         <div v-for="x in copies" :key="x.id" class="text-xs text-slate-500">نسخة لاحقة: <Link :href="`/crm/contracts/${x.id}`" class="text-brand hover:underline">{{ x.number ?? 'مسودة' }}</Link> ({{ statuses[x.status] }})</div>
                     </dl>
                 </div>
+                <InvoiceList v-if="can('finance.view')" :invoices="invoices" :statuses="invoiceStatuses" />
                 <AttachmentsPanel :files="files" title="النسخة الموقّعة والمرفقات" />
                 <div class="card p-5">
                     <h3 class="mb-3 font-semibold text-navy">السجل</h3>

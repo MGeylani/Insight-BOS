@@ -84,6 +84,8 @@ class ClientController extends CrmController
             'contracts' => $this->contractList($client->contracts(), $request->user()),
             'contractStatuses' => config('crm.contract_statuses'),
             'projects' => $this->projectList($client, $request->user()),
+            'invoices' => \App\Services\Finance\InvoiceLists::for($request->user(), fn ($q) => $q->where('client_id', $client->id)),
+            'invoiceStatuses' => config('finance.invoice_statuses'),
             'projectStatuses' => config('projects.statuses'),
             'files' => Attachments::payload($client, $request->user()),
             'stats' => [
