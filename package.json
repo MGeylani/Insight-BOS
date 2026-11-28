@@ -9,6 +9,11 @@
         "dev": "vite"
     },
     "dependencies": {
+        "@fullcalendar/core": "^6.1.22",
+        "@fullcalendar/daygrid": "^6.1.22",
+        "@fullcalendar/interaction": "^6.1.22",
+        "@fullcalendar/timegrid": "^6.1.22",
+        "@fullcalendar/vue3": "^6.1.22",
         "@inertiajs/vue3": "^3.0.0",
         "@lucide/vue": "^1.17.0",
         "@tiptap/core": "^3.35.1",
@@ -20,7 +25,8 @@
         "@tiptap/starter-kit": "^3.35.1",
         "@tiptap/suggestion": "^3.35.1",
         "@tiptap/vue-3": "^3.35.1",
-        "vue": "^3.5.13"
+        "vue": "^3.5.13",
+        "vue-draggable-plus": "^0.6.1"
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.1.11",

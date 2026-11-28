@@ -99,3 +99,67 @@ export function docToPlain(doc) {
     walk(doc);
     return out.join('').replace(/\n{3,}/g, '\n\n').trim();
 }
+
+export const groupLabels = { status: 'الحالة', assignee: 'المسؤول', priority: 'الأولوية', due: 'التسليم', list: 'القائمة', none: 'بلا تجميع' };
+export const sortLabels = { manual: 'يدوي (السحب)', due: 'التسليم', priority: 'الأولوية', created: 'الأحدث إنشاءً', updated: 'آخر تعديل', title: 'العنوان' };
+export const columnLabels = {
+    status: 'الحالة', assignees: 'المسؤولون', due: 'التسليم', start: 'البدء', priority: 'الأولوية', estimate: 'التقدير', tags: 'الوسوم',
+    list: 'القائمة', client: 'العميل', project: 'المشروع', created: 'أُنشئت', completed: 'اكتملت', subtasks: 'الفرعية', comments: 'التعليقات',
+};
+
+const dueBucket = (t) => {
+    if (!t.due) return 'none';
+    if (t.overdue) return 'overdue';
+    const d = datePart(t.due);
+    if (d === todayStr()) return 'today';
+    if (d === todayStr(1)) return 'tomorrow';
+    if (d <= todayStr(7)) return 'week';
+    return 'later';
+};
+const dueGroups = [
+    ['overdue', 'متأخرة', '#dc2626'], ['today', 'اليوم', '#f59e0b'], ['tomorrow', 'غداً', '#0082F6'],
+    ['week', 'خلال 7 أيام', '#00BEF2'], ['later', 'لاحقاً', '#864690'], ['none', 'بلا تاريخ', '#94a3b8'],
+];
+
+/**
+ * Split rows into groups for list and board views.
+ * Each group: { key, label, color, rows, drop(task) -> patch payload | null (not droppable), status? }
+ */
+export function groupTasks(rows, by, { statuses = [], users = [], priorities = {} } = {}) {
+    if (by === 'status') {
+        const names = statuses.map((s) => s.name);
+        const extra = [...new Map(rows.filter((t) => t.status && !names.includes(t.status.name)).map((t) => [t.status.name, t.status])).values()];
+        return [...statuses, ...extra].map((s) => ({
+            key: `s:${s.name}`, label: s.name, color: s.color, status: s, rows: rows.filter((t) => t.status?.name === s.name),
+            drop: () => ({ status_id: s.id }),
+        }));
+    }
+    if (by === 'priority') {
+        return Object.entries(priorities).map(([k, l]) => ({
+            key: `p:${k}`, label: l, color: priorityColor[k], rows: rows.filter((t) => t.priority === k), drop: () => ({ priority: k }),
+        }));
+    }
+    if (by === 'assignee') {
+        const ids = [...new Set(rows.flatMap((t) => t.assignees.map((a) => a.id)))];
+        const people = ids.map((id) => users.find((u) => u.id === id) ?? rows.flatMap((t) => t.assignees).find((a) => a.id === id)).sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+        return [
+            ...people.map((u) => ({
+                key: `a:${u.id}`, label: u.name, color: '#00027C', user: u, rows: rows.filter((t) => t.assignees.some((a) => a.id === u.id)),
+                drop: (task, fromKey) => {
+                    const from = fromKey?.startsWith('a:') ? Number(fromKey.slice(2)) : null;
+                    return { assignees: [...new Set([...task.assignees.map((a) => a.id).filter((id) => id !== from), u.id])] };
+                },
+            })),
+            { key: 'a:none', label: 'بلا مسؤول', color: '#94a3b8', rows: rows.filter((t) => !t.assignees.length), drop: () => ({ assignees: [] }) },
+        ];
+    }
+    if (by === 'due') {
+        const drops = { today: () => ({ due_date: todayStr(), due_time: null }), tomorrow: () => ({ due_date: todayStr(1), due_time: null }), none: () => ({ due_date: null, due_time: null }) };
+        return dueGroups.map(([k, l, c]) => ({ key: `d:${k}`, label: l, color: c, rows: rows.filter((t) => dueBucket(t) === k), drop: drops[k] ?? null }));
+    }
+    if (by === 'list') {
+        const lists = [...new Map(rows.map((t) => [t.list_id, t.list])).values()].filter(Boolean);
+        return lists.map((l) => ({ key: `l:${l.id}`, label: l.name, color: '#0082F6', rows: rows.filter((t) => t.list_id === l.id), drop: null }));
+    }
+    return [{ key: 'all', label: 'كل المهام', color: '#00027C', rows, drop: null }];
+}

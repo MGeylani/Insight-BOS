@@ -24,7 +24,7 @@ class TaskPresenter
     {
         return $query->with(self::ROW_WITH)
             ->withCount(['children', 'children as children_done' => fn ($q) => $q->whereNotNull('completed_at'), 'comments'])
-            ->orderBy('tasks.position')->orderBy('tasks.id')
+            ->when(empty($query->getQuery()->orders), fn ($q) => $q->orderBy('tasks.position')->orderBy('tasks.id'))
             ->limit($limit)->get()->map(fn (Task $t) => self::row($t));
     }
 
