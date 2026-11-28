@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { Link, router } from '@inertiajs/vue3';
+import { Link, router, usePage } from '@inertiajs/vue3';
 import { ChevronRight, ChevronLeft, Plus, Trash2, DollarSign, Play } from '@lucide/vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import PageHeader from '@/components/PageHeader.vue';
@@ -10,8 +10,9 @@ import TimeEntryForm from '@/components/tasks/TimeEntryForm.vue';
 import { minutesLabel, parseLocal, keep } from '@/lib/tasks';
 import { usd } from '@/lib/crm';
 
-const props = defineProps({ who: Object, week: Object, entries: Array, totals: Object, seeCost: Boolean, people: Array, myTasks: Array });
+const props = defineProps({ timesheet: Object, canApprove: Boolean, who: Object, week: Object, entries: Array, totals: Object, seeCost: Boolean, people: Array, myTasks: Array });
 const adding = ref(false);
+const isMe = computed(() => props.who.id === usePage().props.auth?.user?.id);
 const dayFmt = new Intl.DateTimeFormat('ar', { weekday: 'long', day: 'numeric', month: 'short' });
 const days = computed(() => Array.from({ length: 7 }, (_, i) => {
     const d = parseLocal(props.week.start);
@@ -24,6 +25,8 @@ const shift = (n) => { const d = parseLocal(props.week.start); d.setDate(d.getDa
 const go = (p) => router.get('/my-work/time', { week: props.week.start, user: props.who.id, ...p }, { preserveState: true, preserveScroll: true });
 const toggleBillable = (e) => router.patch(`/time-entries/${e.id}`, { billable: !e.billable }, keep);
 const remove = (e) => confirm('حذف قيد الوقت؟') && router.delete(`/time-entries/${e.id}`, keep);
+const submitWeek = () => { const note = prompt('ملاحظة للمعتمِد (اختياري):'); if (note === null) return; router.post('/timesheets/submit', { week: props.week.start, note }, keep); };
+const decide = (decision) => router.post(`/timesheets/${props.timesheet.id}/decide`, { decision, note: decision === 'reject' ? prompt('سبب الرفض:') : null }, keep);
 const restart = (e) => router.post('/timer/start', { task_id: e.task?.id ?? null }, keep);
 </script>
 
@@ -48,6 +51,18 @@ const restart = (e) => router.post('/timer/start', { task_id: e.task?.id ?? null
             <div class="card p-4"><p class="text-xs text-slate-500">غير قابلة للفوترة</p><p class="num text-2xl font-bold text-slate-600">{{ minutesLabel(totals.minutes - totals.billable_minutes) }}</p></div>
             <div v-if="seeCost" class="card p-4"><p class="text-xs text-slate-500">التكلفة</p><p class="num text-2xl font-bold text-plum">{{ usd(totals.cost) }}</p>
                 <p v-if="totals.uncosted_minutes" class="text-[11px] text-amber-700">{{ minutesLabel(totals.uncosted_minutes) }} بلا تكلفة ساعة</p></div>
+        </div>
+
+        <div class="card mb-6 flex flex-wrap items-center gap-3 px-5 py-3 text-sm" :class="timesheet.status === 'approved' ? 'bg-emerald-50' : timesheet.status === 'rejected' ? 'bg-red-50' : ''">
+            <span class="font-semibold text-slate-700">جدول الأسبوع:</span>
+            <span class="rounded-full px-2.5 py-0.5 text-xs font-semibold" :class="{ draft: 'bg-slate-100 text-slate-600', submitted: 'bg-amber-100 text-amber-800', approved: 'bg-emerald-100 text-emerald-800', rejected: 'bg-red-100 text-red-700' }[timesheet.status]">{{ timesheet.status_label }}</span>
+            <span v-if="timesheet.decided_by" class="text-xs text-slate-500">{{ timesheet.decided_by }}<template v-if="timesheet.note"> · «{{ timesheet.note }}»</template></span>
+            <span v-if="timesheet.locked" class="text-xs text-slate-500">القيود مقفلة.</span>
+            <div class="ms-auto flex gap-2">
+                <Btn v-if="!timesheet.locked && isMe" size="sm" @click="submitWeek">إرسال للاعتماد</Btn>
+                <template v-if="canApprove && timesheet.status === 'submitted'"><Btn size="sm" variant="secondary" @click="decide('reject')">رفض</Btn><Btn size="sm" @click="decide('approve')">اعتماد</Btn></template>
+                <Btn v-if="canApprove && timesheet.locked && timesheet.id" size="sm" variant="ghost" @click="decide('reopen')">إعادة فتح</Btn>
+            </div>
         </div>
 
         <TimeEntryForm v-if="adding" :tasks="myTasks" :user-id="who.id" class="mb-6" @done="adding = false" />

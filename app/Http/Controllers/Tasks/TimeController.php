@@ -72,6 +72,7 @@ class TimeController extends Controller
     public function destroy(Request $request, TimeEntry $entry): RedirectResponse
     {
         $this->authorizeEntry($request, $entry);
+        \App\Services\Tasks\Timesheets::assertOpen($entry->user_id, $entry->started_at);
         $entry->delete();
 
         return back()->with('success', 'حُذف القيد.');

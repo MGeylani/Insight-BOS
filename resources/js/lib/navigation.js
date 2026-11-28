@@ -1,6 +1,6 @@
 import {
     LayoutDashboard, Users, Briefcase, ListChecks, Wallet, UserRound, Package, MessagesSquare, BarChart3,
-    ShieldCheck, ScrollText, Building2, Coins, Tags, Hash, Cloud, KeyRound, SquareKanban, Sun, Inbox,
+    ShieldCheck, ScrollText, Building2, Coins, Tags, Hash, Cloud, KeyRound, SquareKanban, Sun, Inbox, Gauge, ClipboardCheck,
 } from '@lucide/vue';
 
 // `match` widens the active state to a whole section (e.g. every /crm page).
@@ -19,7 +19,9 @@ export const navigation = [
         items: [
             { label: 'العملاء والمبيعات', href: '/crm/leads', match: '/crm', icon: Users, perm: 'crm.view' },
             { label: 'المشاريع', href: '/projects', match: '/projects', icon: Briefcase, perm: 'projects.view' },
-            { label: 'المهام', href: '/tasks', match: '/tasks', icon: ListChecks, perm: 'tasks.view' },
+            { label: 'المهام', href: '/tasks', icon: ListChecks, perm: 'tasks.view' },
+            { label: 'ضغط العمل', href: '/tasks/workload', icon: Gauge, perm: 'tasks.view' },
+            { label: 'جداول الساعات', href: '/tasks/timesheets', icon: ClipboardCheck, perm: 'tasks.approve_time' },
             { label: 'المالية', icon: Wallet, perm: 'finance.view', soon: true },
             { label: 'الموارد البشرية', icon: UserRound, perm: 'hr.view', soon: true },
             { label: 'الأصول', icon: Package, perm: 'assets.view', soon: true },

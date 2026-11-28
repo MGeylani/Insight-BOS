@@ -25,6 +25,8 @@ class TimeTracking
     /** Start a timer (stopping the running one first). */
     public static function start(User $user, ?Task $task, ?string $note = null): TimeEntry
     {
+        Timesheets::assertOpen($user->id, now());
+
         return DB::transaction(function () use ($user, $task, $note) {
             if ($r = self::running($user)) {
                 self::stop($r);
@@ -66,6 +68,7 @@ class TimeTracking
     public static function add(User $user, ?Task $task, array $data): TimeEntry
     {
         [$start, $end, $minutes] = self::period($data);
+        Timesheets::assertOpen($user->id, $start);
         $e = TimeEntry::create([
             'user_id' => $user->id, 'task_id' => $task?->id, 'project_id' => $task?->project_id, 'client_id' => $task?->client_id,
             'started_at' => $start, 'ended_at' => $end, 'minutes' => $minutes,
@@ -82,6 +85,10 @@ class TimeTracking
     /** @param array<string, mixed> $data */
     public static function update(TimeEntry $e, array $data): TimeEntry
     {
+        Timesheets::assertOpen($e->user_id, $e->started_at);
+        if (isset($data['date'])) {
+            Timesheets::assertOpen($e->user_id, $data['date']);
+        }
         if ($e->ended_at === null && (isset($data['date']) || isset($data['minutes']))) {
             throw ValidationException::withMessages(['minutes' => 'أوقف المؤقت أولاً ثم عدّل المدة.']);
         }

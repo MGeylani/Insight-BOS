@@ -28,6 +28,8 @@ use App\Http\Controllers\Tasks\ChecklistController;
 use App\Http\Controllers\Tasks\CommentController;
 use App\Http\Controllers\Tasks\CustomFieldController;
 use App\Http\Controllers\Tasks\DependencyController;
+use App\Http\Controllers\Tasks\WorkloadController;
+use App\Http\Controllers\Tasks\TimesheetController;
 use App\Http\Controllers\Tasks\TaskTypeController;
 use App\Http\Controllers\Tasks\SavedViewController;
 use App\Http\Controllers\Tasks\MyWorkController;
@@ -85,6 +87,11 @@ Route::middleware('auth')->group(function () {
         Route::post('time-entries', [TimeController::class, 'store'])->name('time-entries.store');
         Route::patch('time-entries/{entry}', [TimeController::class, 'update'])->name('time-entries.update');
         Route::delete('time-entries/{entry}', [TimeController::class, 'destroy'])->name('time-entries.destroy');
+        Route::post('timesheets/submit', [TimesheetController::class, 'submit'])->name('timesheets.submit');
+    });
+    Route::middleware('can:tasks.approve_time')->group(function () {
+        Route::get('tasks/timesheets', [TimesheetController::class, 'index'])->name('timesheets.index');
+        Route::post('timesheets/{timesheet}/decide', [TimesheetController::class, 'decide'])->name('timesheets.decide');
     });
 
     // CRM. Record-level checks (own / assigned / all) happen in the controllers.
@@ -207,6 +214,10 @@ Route::middleware('auth')->group(function () {
             Route::get('/', [TaskController::class, 'index'])->name('index');
             Route::get('export', [TaskController::class, 'export'])->name('export');
             Route::get('lookup', [DependencyController::class, 'lookup'])->name('lookup');
+            Route::get('workload', [WorkloadController::class, 'index'])->name('workload');
+            Route::put('workload/capacity/{person}', [WorkloadController::class, 'capacity'])->name('workload.capacity');
+            Route::post('time-off', [WorkloadController::class, 'storeTimeOff'])->name('time-off.store');
+            Route::delete('time-off/{timeOff}', [WorkloadController::class, 'destroyTimeOff'])->name('time-off.destroy');
             Route::post('views', [SavedViewController::class, 'store'])->name('views.store');
             Route::put('views/{view}', [SavedViewController::class, 'update'])->name('views.update');
             Route::delete('views/{view}', [SavedViewController::class, 'destroy'])->name('views.destroy');

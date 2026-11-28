@@ -16,7 +16,7 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, SoftDeletes;
 
-    protected $fillable = ['name', 'email', 'password', 'phone', 'is_active', 'role_template_id', 'hourly_cost'];
+    protected $fillable = ['name', 'email', 'password', 'phone', 'is_active', 'role_template_id', 'hourly_cost', 'capacity_hours', 'work_days'];
 
     protected $hidden = ['password', 'remember_token', 'hourly_cost'];
 
@@ -32,6 +32,8 @@ class User extends Authenticatable
             'is_active' => 'boolean',
             'is_super_admin' => 'boolean',
             'hourly_cost' => 'decimal:2',
+            'capacity_hours' => 'float',
+            'work_days' => 'array',
         ];
     }
 
@@ -70,6 +72,12 @@ class User extends Authenticatable
         }
 
         return $minScope === null || Permissions::scopeCovers($scope, $minScope);
+    }
+
+    /** Working days (0 = Sunday … 6 = Saturday). @return list<int> */
+    public function workDays(): array
+    {
+        return $this->work_days ?: config('tasks.work_days');
     }
 
     public function permissionScope(string $permission): ?string
