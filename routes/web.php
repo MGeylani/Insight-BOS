@@ -29,6 +29,8 @@ use App\Http\Controllers\Tasks\CommentController;
 use App\Http\Controllers\Tasks\CustomFieldController;
 use App\Http\Controllers\Tasks\DependencyController;
 use App\Http\Controllers\Tasks\WorkloadController;
+use App\Http\Controllers\Tasks\AutomationController;
+use App\Http\Controllers\Tasks\TemplateController;
 use App\Http\Controllers\Tasks\TimesheetController;
 use App\Http\Controllers\Tasks\TaskTypeController;
 use App\Http\Controllers\Tasks\SavedViewController;
@@ -215,6 +217,7 @@ Route::middleware('auth')->group(function () {
             Route::get('export', [TaskController::class, 'export'])->name('export');
             Route::get('lookup', [DependencyController::class, 'lookup'])->name('lookup');
             Route::get('workload', [WorkloadController::class, 'index'])->name('workload');
+            Route::get('automations', [AutomationController::class, 'index'])->name('automations');
             Route::put('workload/capacity/{person}', [WorkloadController::class, 'capacity'])->name('workload.capacity');
             Route::post('time-off', [WorkloadController::class, 'storeTimeOff'])->name('time-off.store');
             Route::delete('time-off/{timeOff}', [WorkloadController::class, 'destroyTimeOff'])->name('time-off.destroy');
@@ -231,6 +234,7 @@ Route::middleware('auth')->group(function () {
             Route::post('comments/{comment}/assign', [CommentController::class, 'assign'])->name('comments.assign');
         });
         Route::post('/', [TaskController::class, 'store'])->middleware('can:tasks.create')->name('store');
+        Route::post('templates/{template}/apply', [TemplateController::class, 'apply'])->middleware('can:tasks.create')->name('templates.apply');
         Route::middleware('can:tasks.edit')->group(function () {
             Route::patch('{task}', [TaskController::class, 'update'])->name('update');
             Route::post('{task}/move', [TaskController::class, 'move'])->name('move');
@@ -254,6 +258,11 @@ Route::middleware('auth')->group(function () {
             Route::delete('fields/{field}', [CustomFieldController::class, 'destroy'])->name('fields.destroy');
             Route::put('{task}/fields/{field}', [CustomFieldController::class, 'setValue'])->name('fields.value');
             Route::post('{task}/dependencies', [DependencyController::class, 'store'])->name('dependencies.store');
+            Route::post('automations', [AutomationController::class, 'store'])->name('automations.store');
+            Route::put('automations/{automation}', [AutomationController::class, 'update'])->name('automations.update');
+            Route::delete('automations/{automation}', [AutomationController::class, 'destroy'])->name('automations.destroy');
+            Route::post('templates', [TemplateController::class, 'store'])->name('templates.store');
+            Route::delete('templates/{template}', [TemplateController::class, 'destroy'])->name('templates.destroy');
             Route::delete('dependencies/{dependency}', [DependencyController::class, 'destroy'])->name('dependencies.destroy');
         });
         Route::middleware('can:tasks.delete')->group(function () {

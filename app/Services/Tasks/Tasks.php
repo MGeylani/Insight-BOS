@@ -80,6 +80,7 @@ class Tasks
             TaskNotifier::assigned($task, $task->assignees()->pluck('users.id'));
             TaskNotifier::descriptionMentions($task, null, $doc);
             self::syncMilestone($task->project_milestone_id);
+            Automations::fire('task_created', $task);
 
             return $task;
         });
@@ -96,6 +97,7 @@ class Tasks
             $oldMilestone = $task->project_milestone_id;
             $oldDoc = $task->description;
             $oldDue = $task->due_at?->copy();
+            $oldStatus = $task->status;
             if (array_key_exists('recurrence', $data)) {
                 $task->recurrence = Recurrence::clean($data['recurrence']);
             }
@@ -143,7 +145,9 @@ class Tasks
                 TaskNotifier::descriptionMentions($task, $oldDoc, $task->description);
             }
             if ($task->wasChanged('status_id')) {
-                TaskNotifier::statusChanged($task, (string) $task->status()->value('name'));
+                $new = $task->status()->first();
+                TaskNotifier::statusChanged($task, (string) $new?->name);
+                $statusEvent = ['from' => $oldStatus?->name, 'to' => $new?->name, 'to_group' => $new?->group];
             }
             if ($task->wasChanged('due_at')) {
                 TaskNotifier::dueChanged($task);
@@ -153,6 +157,10 @@ class Tasks
             }
             if ($task->wasChanged('completed_at') && $task->completed_at && ($task->recurrence['on'] ?? null) === 'complete') {
                 Recurrence::spawn($task);
+            }
+            if (isset($statusEvent)) {
+                $task->unsetRelation('status');
+                Automations::fire('status_changed', $task, $statusEvent);
             }
             if ($task->wasChanged(['completed_at', 'project_milestone_id'])) {
                 self::syncMilestone($task->project_milestone_id);
@@ -179,6 +187,7 @@ class Tasks
             // Assignees follow the task too.
             $task->watchers()->syncWithoutDetaching($result['attached']);
             TaskNotifier::assigned($task, $result['attached']);
+            Automations::fire('assignee_added', $task, ['users' => array_map('intval', $result['attached'])]);
         }
         if ($result['attached'] || $result['detached']) {
             $names = fn ($ids) => User::whereIn('id', $ids)->pluck('name')->implode('، ');

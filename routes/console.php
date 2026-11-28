@@ -93,3 +93,10 @@ Artisan::command('tasks:recurring', function () {
 })->purpose('Create the next instance of scheduled recurring tasks');
 
 \Illuminate\Support\Facades\Schedule::command('tasks:recurring')->dailyAt('00:10')->withoutOverlapping();
+
+// Time-based automations: due soon, overdue, status unchanged for N days, first day of the month.
+Artisan::command('tasks:automations', function () {
+    $this->info('Ran '.\App\Services\Tasks\Automations::tick().' automation(s).');
+})->purpose('Run time-based task automations');
+
+\Illuminate\Support\Facades\Schedule::command('tasks:automations')->everyFifteenMinutes()->withoutOverlapping();

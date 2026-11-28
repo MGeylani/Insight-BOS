@@ -12,7 +12,7 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
   1. `phase-3b-fields` ← الحقول المخصصة وأنواع المهام ✅
   2. `phase-3b-deps` ← الاعتماديات والروابط، عرض Gantt، المهام المتكررة ✅
   3. `phase-3b-workload` ← ضغط العمل (سعة الموظف)، الخط الزمني للفريق، جداول الساعات الأسبوعية واعتمادها ✅
-  4. `phase-3b-automation` ← القوالب (مهمة، قائمة، مشروع) والأتمتة (مُشغِّل ← شرط ← إجراء) + الأتمتة الجاهزة للوكالة
+  4. `phase-3b-automation` ← القوالب (مهمة، قائمة، مشروع) والأتمتة (مُشغِّل ← شرط ← إجراء) + الأتمتة الجاهزة للوكالة ✅
   5. `phase-3b-intake` ← نماذج الاستقبال (Form View) والتدقيق على الصور والفيديو (Proofing)
   6. `phase-3b-guests` ← صلاحيات على مستوى العميل/المشروع والضيوف
   إن انقطع العمل: ابدأ من آخر فرع موجود على GitHub واقرأ قسمه أدناه. المستخدم يدمج بالترتيب عبر PR ثم يشغّل `migrate --force` و`db:seed --force` و`config:cache`.
@@ -143,6 +143,15 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 - **Cron مطلوب على الخادم** (موجود منذ المرحلة 2): `* * * * * php artisan schedule:run`.
 - الاختبارات: `tests/Feature/MyWorkTest.php`.
 
+## ما بُني في القوالب والأتمتة (المرحلة 3ب، الخطوة 4: `phase-3b-automation`)
+
+- الجداول (`2026_11_30_000400_create_templates_and_automations_tables.php`): `task_templates` (`type` task | list | project، `payload` JSON)، `automations` (`scope_type` all | client | project | list + `scope_id`، `trigger`، `trigger_config`، `conditions`، `actions`، `is_active`، `runs_count`، `last_run_at`)، `automation_runs` (سجل التنفيذ: ok | error، الرسالة، `dedupe_key` لمنع التكرار في المُشغِّلات الزمنية).
+- **القوالب** `App\Services\Tasks\Templates`: `fromTask/fromList/fromProject` تحفظ الهيكل (الفرعيات، قوائم التحقق بتداخلها، الحقول، الوسوم، المسؤولين، النوع، الأولوية، التقدير، اسم الحالة، وحالات القائمة)، والتواريخ **أياماً نسبية** من يوم إنشاء المهمة/القائمة (`start_in_days`، `due_in_days`). `applyTask` (في قائمة أو كفرعية)، `applyList` (قائمة جديدة تحت عميل/مشروع)، `applyProject` (كل قوائم القالب داخل مشروع). المسارات: `POST /tasks/templates` (`from`، `id`، `name`)، `POST /tasks/templates/{id}/apply` (`list_id` | `parent_id` | `client_id` | `project_id`، `name`)، `DELETE /tasks/templates/{id}` (صاحبه أو `settings.manage`). الواجهة `TemplatesModal.vue`: في صفحة المهمة (حفظ كقالب / فرعية من قالب)، وفي صفحة المهام زر القوالب (إنشاء من قالب، حفظ القائمة أو قوائم المشروع كقالب، رابط الأتمتة).
+- **الأتمتة** `App\Services\Tasks\Automations`: المُشغِّلات `task_created`، `status_changed` (to / from / to_group)، `assignee_added`، `field_changed`، `comment_added` تُطلق من `Tasks` و`CustomFields` و`Comments`؛ والزمنية `due_soon` (ساعات)، `overdue`، `status_stale` (حالة + أيام)، `monthly` (اليوم الأول، بلا مهمة) من الأمر `tasks:automations` **كل 15 دقيقة**. الشروط: الحالة، مجموعة الحالة، الأولوية، النوع، الوسم، المسؤول، `field:<id>` بعمليات is / is_not / empty / not_empty / gt / lt. الإجراءات: assign، set_status، set_priority، set_field، increment_field، add_tag، set_due، create_subtask، create_task، apply_template، move_to_list، notify. الأشخاص: معرّفات أو `assignees` / `watchers` / `creator` / `project_manager`؛ النصوص تقبل `{code} {title} {status} {list}` و`{month}` في اسم القائمة.
+- تُنفَّذ **متزامنة** داخل الطلب، والإجراء الفاشل يُسجَّل في `automation_runs` ولا يوقف حفظ المستخدم. الأتمتة التي تُطلق أتمتة أخرى تتوقف عند **3 مستويات**.
+- من يدير: من يدير الحقول المخصصة لذلك المكان (`CustomFields::canManage`). الصفحة `GET /tasks/automations?list|project|client=` (`tasks/Automations.vue`: القائمة مع آخر 5 تنفيذات، تفعيل/إيقاف، محرر «عندما ← إذا ← إذن» في `AutomationModal.vue`، ووصفات جاهزة للوكالة: مراجعة داخلية ← مهمة مراجعة للمدير الإبداعي، بانتظار العميل يومين ← تذكير، تعديلات ← عدّاد الجولات، تجاوز الجولات ← تنبيه، تجاوز الموعد ← إشعار، بداية الشهر ← قائمة محتوى من قالب).
+- الاختبارات: `tests/Feature/TaskAutomationTest.php`.
+
 ## ما بُني في ضغط العمل وجداول الساعات (المرحلة 3ب، الخطوة 3: `phase-3b-workload`)
 
 - الجداول (`2026_11_30_000300_create_workload_and_timesheets_tables.php`): `users.capacity_hours` (افتراضي 8) و`users.work_days` (JSON، 0=الأحد…6=السبت؛ null ← `config('tasks.work_days')` = الاثنين–الجمعة)، `time_off` (إجازات بسيطة إلى أن يأتي موديول HR)، `timesheets` (`user_id`، `week_start` = السبت، `status` draft | submitted | approved | rejected، `decided_by/at`، `note`).
@@ -220,6 +229,15 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 6. **عدّاد جولات التعديل** المذكور مع طلبات التغيير مؤجل إلى التسليمات وبوابة المراجعة (المرحلة 6)؛ طلب التغيير الآن يحمل أثر التكلفة والوقت فقط.
 7. عرض الميزانية مقصور على من لديه `projects.manage_budget` أو `projects.approve_changes` أو `finance.view`؛ أعضاء الفريق العاديون لا يرونها.
 8. أرشفة المشروع (soft delete) لا تفك ربطه بالعرض/العقد، فلا يمكن إنشاء مشروع جديد من نفس العرض بعد أرشفة مشروعه.
+
+**المرحلة 3ب — الخطوة 4 (القوالب والأتمتة):**
+1. **الأتمتة متزامنة** (لا Queue): تُنفَّذ أثناء الحفظ، والزمنية كل 15 دقيقة عبر Scheduler. إن صارت ثقيلة لاحقاً ننقلها لطابور.
+2. حد التسلسل 3 مستويات لمنع الحلقات (أتمتة تغيّر حالة تُطلق أتمتة تعيدها).
+3. إجراء «النشر في قناة» غير موجود لأن موديول التواصل لم يُبنَ؛ يُضاف معه.
+4. وصفتا «اعتماد العميل لمخرج ← مسودة فاتورة» و«إرسال رابط المراجعة للعميل» مؤجلتان إلى المالية (المرحلة 4) وبوابة العميل.
+5. القوالب عامة للشركة (يراها كل من ينشئ مهام)، ويحذفها صاحبها أو مدير الإعدادات. المسؤولون في القالب يُحفظون كما هم؛ إن لم يُحدَّد أحد يُسند لمن طبّق القالب.
+6. حالات «بانتظار العميل يومين» تُحسب من آخر تعديل على المهمة (`updated_at`)، لا من لحظة دخول الحالة تحديداً.
+7. وصفة «بداية الشهر» تحتاج أن يكون نطاق الأتمتة مشروعاً (أو أن يُحدَّد المشروع في الإجراء)، وتعمل في أول تشغيل بعد منتصف ليل اليوم الأول.
 
 **المرحلة 3ب — الخطوة 3 (ضغط العمل وجداول الساعات):**
 1. **أيام العمل الافتراضية الاثنين–الجمعة** (مكتب إسطنبول) و8 ساعات يومياً، وتُعدّل لكل شخص. أما «الأسبوع» في جداول الساعات و«وقتي» فيبدأ السبت كما في 3أ. راجع إن كان الأسبوع عندكم غير ذلك.

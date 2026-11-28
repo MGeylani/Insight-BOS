@@ -104,6 +104,7 @@ class CustomFields
         if (json_encode($old?->value) !== json_encode($clean)) {
             ActivityLogger::log('tasks.field', $task, "«{$field->name}» ← ".self::display($field, $clean), ['field_id' => $field->id, 'from' => $old?->value, 'to' => $clean]);
             $task->touch();
+            Automations::fire('field_changed', $task, ['field_id' => $field->id]);
         }
     }
 

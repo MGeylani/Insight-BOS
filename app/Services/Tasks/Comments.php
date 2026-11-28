@@ -40,6 +40,7 @@ class Comments
             $task->watchers()->syncWithoutDetaching([$user->id]);
             ActivityLogger::log('tasks.commented', $task, ($assignTo ? 'تعليق مُسند: ' : 'تعليق: ').RichText::excerpt($doc, 80), ['comment_id' => $c->id]);
             TaskNotifier::comment($task, $c, RichText::mentions($doc));
+            Automations::fire('comment_added', $task, ['comment_id' => $c->id]);
 
             return $c;
         });
