@@ -4,10 +4,10 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
 import Gantt from 'frappe-gantt';
 import '../../../../node_modules/frappe-gantt/dist/frappe-gantt.css';
-import Btn from '@/components/Btn.vue';
+import { FileSpreadsheet } from '@lucide/vue';
 import { patchTask, timePart, hasTime } from '@/lib/tasks';
 
-const props = defineProps({ tasks: Array, can: Object, types: { type: Array, default: () => [] } });
+const props = defineProps({ tasks: Array, can: Object, types: { type: Array, default: () => [] }, exportUrl: { type: String, default: null } });
 const el = ref(null);
 const mode = ref('Week');
 const critical = ref(true);
@@ -80,6 +80,9 @@ onBeforeUnmount(() => { gantt = null; });
         <div class="mb-3 flex flex-wrap items-center gap-2 text-sm">
             <button v-for="m in [['Day', 'يوم'], ['Week', 'أسبوع'], ['Month', 'شهر']]" :key="m[0]" type="button" class="rounded-lg px-3 py-1" :class="mode === m[0] ? 'bg-navy text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'" @click="mode = m[0]">{{ m[1] }}</button>
             <label class="ms-3 flex items-center gap-1.5 text-slate-600"><input v-model="critical" type="checkbox" class="rounded" /> المسار الحرج</label>
+            <a v-if="exportUrl && dated.length" :href="`${exportUrl}&scale=${mode.toLowerCase()}`" class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1 text-emerald-700 hover:bg-emerald-100" title="ملف Excel: ورقة المهام وورقة Gantt بالمقياس المختار">
+                <FileSpreadsheet class="size-4" /> Excel
+            </a>
             <span class="ms-auto text-xs text-slate-500">اسحب الشريط لتحريكه أو طرفه لتمديده · نقرتان لفتح المهمة<template v-if="undated"> · {{ undated }} مهمة بلا تواريخ لا تظهر</template></span>
         </div>
         <div dir="ltr" class="task-gantt overflow-x-auto"><div ref="el" /></div>

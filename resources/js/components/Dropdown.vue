@@ -2,7 +2,7 @@
 // A popover anchored to its trigger, rendered in <body> so tables and cards never clip it.
 import { nextTick, onBeforeUnmount, ref } from 'vue';
 
-const props = defineProps({ width: { type: String, default: 'w-56' }, disabled: Boolean, align: { type: String, default: 'start' } });
+const props = defineProps({ width: { type: String, default: 'w-56' }, disabled: Boolean, align: { type: String, default: 'start' }, panelClass: { type: String, default: 'max-h-80 overflow-y-auto p-1' } });
 const emit = defineEmits(['open', 'close']);
 const open = ref(false);
 const trigger = ref(null);
@@ -55,7 +55,7 @@ defineExpose({ close, show });
 <template>
     <span ref="trigger" class="inline-flex" @click.stop="toggle"><slot name="trigger" :open="open" /></span>
     <Teleport to="body">
-        <div v-if="open" ref="panel" dir="rtl" class="card fixed z-[60] max-h-80 overflow-y-auto p-1 shadow-xl" :class="width" :style="style" @click.stop>
+        <div v-if="open" ref="panel" dir="rtl" class="card fixed z-[60] shadow-xl" :class="[width, panelClass]" :style="style" @click.stop>
             <slot :close="close" />
         </div>
     </Teleport>
