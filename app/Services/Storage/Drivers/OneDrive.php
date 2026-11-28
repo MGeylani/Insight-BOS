@@ -126,4 +126,13 @@ class OneDrive extends OAuthDriver
         $this->check($this->call(fn () => $this->api()->delete(self::GRAPH.'/me/drive/items/'.rawurlencode($externalId))),
             'فشل حذف الملف من OneDrive', [404]);
     }
+
+    /** File content (streamed), for showing pasted images inside BOS. */
+    public function read(string $externalId): \Illuminate\Http\Client\Response
+    {
+        $r = $this->call(fn () => $this->api()->accept('*/*')->withOptions(['stream' => true])
+            ->get(self::GRAPH.'/me/drive/items/'.rawurlencode($externalId).'/content'));
+
+        return $this->check($r, 'فشل قراءة الملف من OneDrive');
+    }
 }

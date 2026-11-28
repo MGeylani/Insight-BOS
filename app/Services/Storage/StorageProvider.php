@@ -29,4 +29,7 @@ interface StorageProvider
 
     /** Delete (or move to the provider's trash) a file. A file that is already gone is not an error. */
     public function delete(string $externalId): void;
+
+    /** The file's content as a streamed HTTP response. */
+    public function read(string $externalId): \Illuminate\Http\Client\Response;
 }

@@ -7,6 +7,7 @@ use App\Models\Client;
 use App\Models\Contract;
 use App\Models\Project;
 use App\Models\Quote;
+use App\Models\Task;
 use App\Models\StorageConnection;
 use App\Models\User;
 use App\Services\ActivityLogger;
@@ -31,6 +32,7 @@ class Attachments
         'project' => [Project::class, 'projects'],
         'contract' => [Contract::class, 'crm'],
         'quote' => [Quote::class, 'crm'],
+        'task' => [Task::class, 'tasks'],
     ];
 
     private const TEMP_DIR = 'attachment-uploads';
