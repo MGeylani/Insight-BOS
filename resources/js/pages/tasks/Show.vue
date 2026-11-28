@@ -202,7 +202,7 @@ const childCan = computed(() => ({ ...props.can, create: props.can.create && t.v
 
                 <ChecklistPanel :task-id="t.id" :checklists="t.checklists" :users="users" :editable="can.edit" />
 
-                <AttachmentsPanel :files="files" title="المرفقات" :hint="t.home.project ? 'تُحفظ في مجلد المشروع' : 'تُحفظ في مجلد مهام العميل'" />
+                <AttachmentsPanel :files="files" title="المرفقات" :proof-base="`/tasks/${t.id}/proof`" :hint="t.home.project ? 'تُحفظ في مجلد المشروع' : 'تُحفظ في مجلد مهام العميل'" />
 
                 <TaskComments :task-id="t.id" :comments="comments" :users="users" :uploader="files.policy.connected && files.can_upload ? uploader : null" />
             </div>
