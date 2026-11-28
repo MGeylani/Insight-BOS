@@ -222,6 +222,7 @@ Route::middleware('auth')->group(function () {
         Route::middleware('can:tasks.view')->group(function () {
             Route::get('/', [TaskController::class, 'index'])->name('index');
             Route::get('export', [TaskController::class, 'export'])->name('export');
+            Route::get('export/gantt', [TaskController::class, 'exportGantt'])->name('export.gantt');
             Route::get('lookup', [DependencyController::class, 'lookup'])->name('lookup');
             Route::get('workload', [WorkloadController::class, 'index'])->name('workload');
             Route::get('automations', [AutomationController::class, 'index'])->name('automations');

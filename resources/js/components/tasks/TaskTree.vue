@@ -1,10 +1,13 @@
 <script setup>
 // Sidebar: Insight Media first, then clients; each with its own lists and its projects' lists.
-import { computed, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import { ChevronDown, ChevronLeft, Building2, Briefcase, List, Layers, Search } from '@lucide/vue';
 
-const props = defineProps({ tree: Array, location: Object });
+const props = defineProps({ tree: Array, location: Object, bare: Boolean, autofocus: Boolean });
+const emit = defineEmits(['pick']);
+const searchEl = ref(null);
+onMounted(() => props.autofocus && searchEl.value?.focus());
 const q = ref('');
 const open = reactive({});
 const isOpen = (key, def) => (open[key] ?? def);
@@ -13,7 +16,7 @@ const here = (type, id) => props.location?.type === type && props.location?.id =
 const filtered = computed(() => {
     const s = q.value.trim();
     if (!s) return props.tree;
-    const m = (t) => (t ?? '').includes(s);
+    const m = (t) => (t ?? '').toLowerCase().includes(s.toLowerCase());
     return props.tree.map((c) => ({
         ...c,
         lists: m(c.name) ? c.lists : c.lists.filter((l) => m(l.name)),
@@ -27,13 +30,13 @@ const contains = (c) => props.location && (
 </script>
 
 <template>
-    <div class="card p-3 text-sm">
+    <div class="p-3 text-sm" :class="bare ? '' : 'card'" @click="$event.target.closest('a') && emit('pick')">
         <Link href="/tasks" class="mb-2 flex items-center gap-2 rounded-lg px-2 py-1.5 font-semibold" :class="!location ? 'bg-navy text-white' : 'text-navy hover:bg-slate-100'">
             <Layers class="size-4" /> كل المهام
         </Link>
         <div class="relative mb-2">
             <Search class="absolute start-2 top-2 size-3.5 text-slate-400" />
-            <input v-model="q" class="field-input py-1 ps-7 text-xs" placeholder="بحث في القوائم…" />
+            <input v-model="q" class="field-input py-1 ps-7 text-xs" placeholder="بحث في العملاء والمشاريع والقوائم…" ref="searchEl" />
         </div>
         <ul class="space-y-0.5">
             <li v-for="c in filtered" :key="c.id">

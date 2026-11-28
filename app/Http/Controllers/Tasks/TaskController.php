@@ -141,6 +141,31 @@ class TaskController extends Controller
         }, 'tasks-'.now()->format('Y-m-d').'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
+    /** The Gantt view as an Excel workbook (tasks sheet + coloured grid), same location and filters. */
+    public function exportGantt(Request $request): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        $user = $request->user();
+        $location = array_filter($request->only('list', 'project', 'client'));
+        if (! empty($location['list'])) {
+            abort_unless(TaskList::findOrFail($location['list'])->isVisibleTo($user), 403);
+        }
+        $view = ViewConfig::clean($request->all());
+        $query = TaskQuery::sort(TaskQuery::build($user, $location, TaskQuery::clean($request->all())), $view['sort'], $view['dir']);
+        if (! $view['subtasks']) {
+            $query->whereNull('tasks.parent_id');
+        }
+        $rows = TaskPresenter::rows($query, 5000);
+        $title = (TaskPresenter::location($location)['name'] ?? 'كل المهام').' — '.now()->format('Y-m-d');
+        [$book] = \App\Services\Tasks\GanttExport::build($rows, (string) $request->query('scale', 'week'), $title);
+        $path = tempnam(sys_get_temp_dir(), 'gantt');
+        $book->save($path);
+        \App\Services\ActivityLogger::log('tasks.exported', null, 'تصدير Gantt Excel لـ '.count($rows).' مهمة');
+
+        return response()->download($path, 'gantt-'.now()->format('Y-m-d').'.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend();
+    }
+
     public function show(Request $request, Task $task): Response
     {
         $user = $request->user();

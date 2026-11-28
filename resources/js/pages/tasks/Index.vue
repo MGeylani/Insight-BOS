@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
-    Plus, Pencil, Trash2, Palette, ListPlus, Settings2, Shapes, List, Columns3, CalendarDays, Table2, Bookmark, BookmarkPlus, Download, Users2, Lock, SlidersHorizontal, Check, ChartGantt, LayoutTemplate, Zap, FileInput, Share2,
+    Plus, Pencil, Trash2, Palette, ListPlus, Settings2, Shapes, List, Columns3, CalendarDays, Table2, Bookmark, BookmarkPlus, Download, Users2, Lock, SlidersHorizontal, Check, ChartGantt, ChevronDown, Pin, PinOff, LayoutTemplate, Zap, FileInput, Share2,
 } from '@lucide/vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Btn from '@/components/Btn.vue';
@@ -36,7 +36,7 @@ const loc = computed(() => props.location);
 const locQuery = computed(() => (loc.value ? { [loc.value.type]: loc.value.id } : {}));
 const title = computed(() => loc.value?.name ?? 'كل المهام');
 
-const types = [
+const viewTypes = [
     { key: 'list', label: 'قائمة', icon: List },
     { key: 'board', label: 'لوحة', icon: Columns3 },
     { key: 'calendar', label: 'تقويم', icon: CalendarDays },
@@ -95,6 +95,7 @@ const newListProject = computed(() => (loc.value?.type === 'project' ? loc.value
 const top = computed(() => props.tasks.filter((t) => !t.parent_id).length);
 const listId = computed(() => (loc.value?.type === 'list' ? loc.value.id : null));
 const shareOpen = ref(false);
+const treeKey = ref(0);
 const tplOpen = ref(false);
 const tplMode = ref('apply');
 const tplSource = computed(() => (loc.value && loc.value.type !== 'client' ? { from: loc.value.type, id: loc.value.id, name: loc.value.name } : null));
@@ -102,26 +103,54 @@ const tplTarget = computed(() => (loc.value?.type === 'list' ? { list_id: loc.va
 const tplKinds = computed(() => (loc.value?.type === 'list' ? ['task'] : loc.value?.type === 'project' ? ['list', 'project'] : ['list']));
 const openTpl = (mode) => { tplMode.value = mode; tplOpen.value = true; };
 const automationsUrl = computed(() => `/tasks/automations${loc.value ? `?${loc.value.type}=${loc.value.id}` : ''}`);
+const ganttExportUrl = computed(() => exportUrl.value.replace('/tasks/export?', '/tasks/export/gantt?') + (v.value.subtasks ? '' : '&subtasks=0'));
+
+// Location picker: a dropdown by the title by default; can be pinned as a side panel (remembered by the browser).
+const readPin = () => { try { return localStorage.getItem('bos.tasks.tree') === 'pinned'; } catch { return false; } };
+const pinned = ref(readPin());
+const setPinned = (on) => { pinned.value = on; try { localStorage.setItem('bos.tasks.tree', on ? 'pinned' : 'menu'); } catch { /* private mode */ } };
 const menuItem = 'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50';
 </script>
 
 <template>
-    <AppLayout :title="title">
-        <div class="grid gap-6 lg:grid-cols-[17rem_minmax(0,1fr)]">
-            <aside class="lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
-                <TaskTree :tree="tree" :location="location" />
+    <AppLayout :title="title" wide>
+        <div class="grid gap-6" :class="pinned ? 'lg:grid-cols-[17rem_minmax(0,1fr)]' : ''">
+            <aside v-if="pinned" class="lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
+                <div class="card">
+                    <div class="flex items-center justify-between border-b border-slate-100 px-3 py-2 text-xs text-slate-500">
+                        العملاء والمشاريع والقوائم
+                        <button type="button" class="rounded p-1 hover:bg-slate-100 hover:text-navy" title="إلغاء التثبيت (يصبح قائمة منسدلة بجانب العنوان)" @click="setPinned(false)"><PinOff class="size-3.5" /></button>
+                    </div>
+                    <TaskTree :tree="tree" :location="location" bare />
+                </div>
             </aside>
 
             <section class="min-w-0">
-                <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+                <div class="mb-3 flex flex-wrap items-end justify-between gap-3">
                     <div class="min-w-0">
                         <p class="text-xs text-slate-500">
                             <template v-if="loc?.client && loc.type !== 'client'"><Link :href="`/tasks?client=${loc.client.id}`" class="hover:underline">{{ loc.client.name }}</Link></template>
                             <template v-if="loc?.project && loc.type === 'list'"> ← <Link :href="`/tasks?project=${loc.project.id}`" class="hover:underline">{{ loc.project.name }}</Link></template>
                             <template v-if="!loc">كل ما يمكنك رؤيته</template>
                         </p>
-                        <h1 class="flex items-center gap-2 truncate text-2xl font-bold text-navy">
-                            {{ title }}
+                        <h1 class="flex items-center gap-2 text-2xl font-bold text-navy">
+                            <Dropdown v-if="!pinned" width="w-80" panel-class="p-0" @open="treeKey++">
+                                <template #trigger="{ open }">
+                                    <button type="button" class="-mx-2 flex min-w-0 items-center gap-1.5 rounded-xl px-2 py-0.5 hover:bg-slate-100" title="اختر عميلاً أو مشروعاً أو قائمة">
+                                        <span class="truncate">{{ title }}</span><ChevronDown class="size-5 shrink-0 text-slate-400 transition" :class="open ? 'rotate-180' : ''" />
+                                    </button>
+                                </template>
+                                <template #default="{ close }">
+                                    <div class="flex items-center justify-between border-b border-slate-100 px-3 py-2 text-xs text-slate-500">
+                                        انتقل إلى
+                                        <button type="button" class="flex items-center gap-1 rounded px-1.5 py-1 hover:bg-slate-100 hover:text-navy" title="تثبيت كلوحة جانبية" @click="setPinned(true); close()"><Pin class="size-3.5" /> تثبيت</button>
+                                    </div>
+                                    <div class="max-h-[65vh] overflow-y-auto">
+                                        <TaskTree :key="treeKey" :tree="tree" :location="location" bare autofocus @pick="close()" />
+                                    </div>
+                                </template>
+                            </Dropdown>
+                            <span v-else class="truncate">{{ title }}</span>
                             <span v-if="loc?.type === 'client' && loc.prefix" class="num rounded-md bg-slate-100 px-2 py-0.5 text-sm font-semibold text-slate-500" dir="ltr">{{ loc.prefix }}</span>
                         </h1>
                         <p v-if="loc?.description" class="mt-1 text-sm text-slate-500">{{ loc.description }}</p>
@@ -154,8 +183,8 @@ const menuItem = 'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm 
                 </div>
 
                 <!-- View switcher and saved views -->
-                <div class="mb-4 flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2">
-                    <button v-for="t in types" :key="t.key" type="button" class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm transition"
+                <div class="mb-3 flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2">
+                    <button v-for="t in viewTypes" :key="t.key" type="button" class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm transition"
                         :class="!savedView && v.view === t.key ? 'bg-navy font-semibold text-white' : 'text-slate-600 hover:bg-slate-100'" @click="setView(t.key)">
                         <component :is="t.icon" class="size-4" /> {{ t.label }}
                     </button>
@@ -203,14 +232,15 @@ const menuItem = 'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm 
 
                 <div v-if="errors.length" class="mb-4 rounded-2xl bg-red-50 p-4 text-sm text-red-800"><p v-for="e in errors" :key="e">{{ e }}</p></div>
 
-                <TaskFilters :filters="filters" :users="users" :priorities="priorities" :tags="tags" :statuses="statuses" :types="types" :custom-fields="customFields" @change="(f) => go({ filters: f })" />
-                <p class="-mt-2 mb-3 text-xs text-slate-500"><span class="num">{{ top }}</span> مهمة<template v-if="tasks.length >= 1000"> (يُعرض أول 1000؛ ضيّق الفلاتر)</template></p>
+                <TaskFilters :filters="filters" :users="users" :priorities="priorities" :tags="tags" :statuses="statuses" :types="types" :custom-fields="customFields" @change="(f) => go({ filters: f })">
+                    <span class="num">{{ top }}</span> مهمة<template v-if="tasks.length >= 1000"> (يُعرض أول 1000؛ ضيّق الفلاتر)</template>
+                </TaskFilters>
 
                 <TaskListView v-if="v.view === 'list'" :tasks="tasks" :statuses="statuses" :users="users" :tags="tags" :priorities="priorities" :can="can"
                     :list-id="listId" :show-location="loc?.type !== 'list'" :group-by="v.group" :types="types" :custom-fields="customFields" selectable :selected="selected" @toggle-select="toggleSelect" @select-many="selectMany" />
                 <TaskBoardView v-else-if="v.view === 'board'" :tasks="tasks" :statuses="statuses" :users="users" :tags="tags" :priorities="priorities" :can="can"
                     :list-id="listId" :group-by="v.group === 'none' || v.group === 'list' ? 'status' : v.group" :manual="v.sort === 'manual'" :types="types" :custom-fields="customFields" />
-                <TaskGanttView v-else-if="v.view === 'gantt'" :tasks="tasks" :can="can" :types="types" />
+                <TaskGanttView v-else-if="v.view === 'gantt'" :tasks="tasks" :can="can" :types="types" :export-url="$page.props.auth.user?.is_guest ? null : ganttExportUrl" />
                 <TaskCalendarView v-else-if="v.view === 'calendar'" :tasks="tasks" :can="can" :list-id="listId" :date-field="v.date" />
                 <TaskTableView v-else :tasks="tasks" :statuses="statuses" :users="users" :tags="tags" :priorities="priorities" :can="can"
                     :columns="v.columns" :sort="v.sort" :dir="v.dir" :types="types" :custom-fields="customFields" :selected="selected" @toggle-select="toggleSelect" @select-many="selectMany"
