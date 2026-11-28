@@ -142,4 +142,14 @@ class Dropbox extends OAuthDriver
 
         return 'https://www.dropbox.com/home'.($enc ? '/'.$enc : '').'?preview='.rawurlencode(basename($pathDisplay));
     }
+
+    /** File content (streamed), for showing pasted images inside BOS. */
+    public function read(string $externalId): \Illuminate\Http\Client\Response
+    {
+        $r = $this->call(fn () => $this->api()->accept('*/*')->withOptions(['stream' => true])
+            ->withHeaders(['Dropbox-API-Arg' => $this->arg(['path' => $externalId])])
+            ->withBody('', 'text/plain')->post(self::CONTENT.'/files/download'));
+
+        return $this->check($r, 'فشل قراءة الملف من Dropbox');
+    }
 }

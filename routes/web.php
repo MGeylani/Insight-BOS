@@ -25,6 +25,7 @@ use App\Http\Controllers\Settings\NumberingController;
 use App\Http\Controllers\Settings\ServiceCategoryController;
 use App\Http\Controllers\Settings\StorageController;
 use App\Http\Controllers\Tasks\ChecklistController;
+use App\Http\Controllers\Tasks\CommentController;
 use App\Http\Controllers\Tasks\TaskController;
 use App\Http\Controllers\Tasks\TaskListController;
 use App\Http\Controllers\Tasks\TaskSettingsController;
@@ -51,6 +52,7 @@ Route::middleware('auth')->group(function () {
     // Attachments on any record; access follows the record's own permissions (checked in the controller).
     Route::post('attachments', [AttachmentController::class, 'store'])->middleware('throttle:60,1')->name('attachments.store');
     Route::get('attachments/{attachment}/open', [AttachmentController::class, 'open'])->name('attachments.open');
+    Route::get('attachments/{attachment}/inline', [AttachmentController::class, 'inline'])->name('attachments.inline');
     Route::post('attachments/{attachment}/retry', [AttachmentController::class, 'retry'])->name('attachments.retry');
     Route::delete('attachments/{attachment}', [AttachmentController::class, 'destroy'])->name('attachments.destroy');
 
@@ -177,6 +179,11 @@ Route::middleware('auth')->group(function () {
             Route::get('/', [TaskController::class, 'index'])->name('index');
             Route::get('{task}', [TaskController::class, 'show'])->whereNumber('task')->name('show');
             Route::post('{task}/watch', [TaskController::class, 'watch'])->name('watch');
+            Route::post('{task}/comments', [CommentController::class, 'store'])->middleware('throttle:60,1')->name('comments.store');
+            Route::patch('comments/{comment}', [CommentController::class, 'update'])->name('comments.update');
+            Route::delete('comments/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');
+            Route::post('comments/{comment}/resolve', [CommentController::class, 'resolve'])->name('comments.resolve');
+            Route::post('comments/{comment}/assign', [CommentController::class, 'assign'])->name('comments.assign');
         });
         Route::post('/', [TaskController::class, 'store'])->middleware('can:tasks.create')->name('store');
         Route::middleware('can:tasks.edit')->group(function () {

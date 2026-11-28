@@ -68,13 +68,15 @@ class Tasks
 
             $assignees = $data['assignees'] ?? [$user->id];
             $task->assignees()->sync(self::activeUsers($assignees));
-            $task->watchers()->sync(self::activeUsers(array_merge($data['watchers'] ?? [], [$user->id])));
+            $task->watchers()->sync(self::activeUsers(array_merge($data['watchers'] ?? [], [$user->id], $assignees)));
             if (! empty($data['tags'])) {
                 $task->tags()->sync(Tag::whereIn('id', $data['tags'])->pluck('id'));
             }
             $task->setRelation('client', $client);
 
             ActivityLogger::log('tasks.created', $task, ($parent ? 'إنشاء مهمة فرعية ' : 'إنشاء المهمة ').$task->code().': '.$task->title);
+            TaskNotifier::assigned($task, $task->assignees()->pluck('users.id'));
+            TaskNotifier::descriptionMentions($task, null, $doc);
             self::syncMilestone($task->project_milestone_id);
 
             return $task;
@@ -90,6 +92,7 @@ class Tasks
     {
         return DB::transaction(function () use ($task, $data) {
             $oldMilestone = $task->project_milestone_id;
+            $oldDoc = $task->description;
             if (array_key_exists('title', $data)) {
                 $task->title = trim($data['title']);
             }
@@ -120,6 +123,15 @@ class Tasks
             if ($entry) {
                 ActivityLogger::log('tasks.updated', $task, $entry[0], $entry[1]);
             }
+            if ($task->wasChanged('description')) {
+                TaskNotifier::descriptionMentions($task, $oldDoc, $task->description);
+            }
+            if ($task->wasChanged('status_id')) {
+                TaskNotifier::statusChanged($task, (string) $task->status()->value('name'));
+            }
+            if ($task->wasChanged('due_at')) {
+                TaskNotifier::dueChanged($task);
+            }
             if ($task->wasChanged(['completed_at', 'project_milestone_id'])) {
                 self::syncMilestone($task->project_milestone_id);
                 if ((int) $oldMilestone !== (int) $task->project_milestone_id) {
@@ -144,6 +156,7 @@ class Tasks
         if ($relation === 'assignees' && $result['attached']) {
             // Assignees follow the task too.
             $task->watchers()->syncWithoutDetaching($result['attached']);
+            TaskNotifier::assigned($task, $result['attached']);
         }
         if ($result['attached'] || $result['detached']) {
             $names = fn ($ids) => User::whereIn('id', $ids)->pluck('name')->implode('، ');

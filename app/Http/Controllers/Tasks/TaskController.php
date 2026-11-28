@@ -11,6 +11,8 @@ use App\Models\Project;
 use App\Models\Task;
 use App\Models\TaskList;
 use App\Models\User;
+use App\Services\Storage\Attachments;
+use App\Services\Tasks\Comments;
 use App\Services\Tasks\TaskLists;
 use App\Services\Tasks\TaskPresenter;
 use App\Services\Tasks\TaskQuery;
@@ -107,6 +109,8 @@ class TaskController extends Controller
                     ])->values(),
                 ])->values(),
             ],
+            'comments' => Comments::payload($task, $user),
+            'files' => Attachments::payload($task, $user),
             'activity' => ActivityLog::with('user:id,name')->where('subject_type', 'task')->where('subject_id', $task->id)
                 ->latest('id')->limit(100)->get()
                 ->map(fn ($l) => ['id' => $l->id, 'action' => $l->action, 'description' => $l->description, 'user' => $l->user?->name, 'created_at' => $l->created_at?->toIso8601String()]),

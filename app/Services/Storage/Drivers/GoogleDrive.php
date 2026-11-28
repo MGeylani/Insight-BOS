@@ -108,4 +108,13 @@ class GoogleDrive extends OAuthDriver
         $this->check($this->call(fn () => $this->api()->patch(self::API.'/files/'.rawurlencode($externalId).'?supportsAllDrives=true', ['trashed' => true])),
             'فشل حذف الملف من Google Drive', [404]);
     }
+
+    /** File content (streamed), for showing pasted images inside BOS. */
+    public function read(string $externalId): \Illuminate\Http\Client\Response
+    {
+        $r = $this->call(fn () => $this->api()->accept('*/*')->withOptions(['stream' => true])
+            ->get(self::API.'/files/'.rawurlencode($externalId).'?alt=media&supportsAllDrives=true'));
+
+        return $this->check($r, 'فشل قراءة الملف من Google Drive');
+    }
 }

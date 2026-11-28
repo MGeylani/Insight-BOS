@@ -7,7 +7,9 @@ use App\Services\Storage\Attachments;
 use App\Services\Storage\Drivers\WebDav;
 use App\Services\Storage\Providers;
 use App\Services\Storage\StorageException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\Response;
@@ -16,7 +18,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 /** Files on any record (client, project, contract, quote). Access follows the record's own permissions. */
 class AttachmentController extends Controller
 {
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse|JsonResponse
     {
         $data = $request->validate([
             'type' => ['required', Rule::in(array_keys(Attachments::TYPES))],
@@ -29,13 +31,23 @@ class AttachmentController extends Controller
 
         $ok = 0;
         $failed = [];
+        $stored = [];
         foreach ($request->file('files') as $file) {
             $a = Attachments::store($owner, $file, $request->user());
+            $stored[] = $a;
             if ($a->isUploaded()) {
                 $ok++;
             } else {
                 $failed[] = $a->name;
             }
+        }
+
+        // The rich-text editor uploads pasted images with fetch() and needs their ids.
+        if ($request->wantsJson()) {
+            return response()->json(['attachments' => array_map(fn (Attachment $a) => [
+                'id' => $a->id, 'name' => $a->name, 'status' => $a->status, 'mime' => $a->mime,
+                'src' => "/attachments/{$a->id}/inline", 'error' => $a->status === 'failed' ? $a->error : null,
+            ], $stored)]);
         }
 
         if ($failed) {
@@ -76,6 +88,39 @@ class AttachmentController extends Controller
             'Content-Disposition' => ($request->boolean('download') ? 'attachment' : 'inline').'; filename*=UTF-8\'\''.rawurlencode($attachment->name),
             'Cache-Control' => 'private, no-store',
         ]);
+    }
+
+    /**
+     * The file's bytes, streamed through BOS: used for images pasted into descriptions and comments.
+     * While the upload is still pending the temporary copy on the server is served.
+     */
+    public function inline(Request $request, Attachment $attachment): Response
+    {
+        $owner = $attachment->attachable;
+        abort_unless($owner && Attachments::can($request->user(), $owner, 'view'), 403);
+        $headers = [
+            'Content-Type' => $attachment->mime ?: 'application/octet-stream',
+            'Content-Disposition' => 'inline; filename*=UTF-8\'\''.rawurlencode($attachment->name),
+            'Cache-Control' => 'private, max-age=86400',
+            'X-Content-Type-Options' => 'nosniff',
+        ];
+        if ($attachment->temp_path && Storage::disk('local')->exists($attachment->temp_path)) {
+            return response()->file(Storage::disk('local')->path($attachment->temp_path), $headers);
+        }
+        abort_unless($attachment->isUploaded() && $attachment->storageConnection, 404);
+        try {
+            $remote = Providers::driver($attachment->storageConnection)->read($attachment->external_id);
+        } catch (StorageException $e) {
+            abort(502, $e->getMessage());
+        }
+        $body = $remote->toPsrResponse()->getBody();
+
+        return new StreamedResponse(function () use ($body) {
+            while (! $body->eof()) {
+                echo $body->read(1024 * 256);
+                flush();
+            }
+        }, 200, $headers);
     }
 
     public function retry(Request $request, Attachment $attachment): RedirectResponse

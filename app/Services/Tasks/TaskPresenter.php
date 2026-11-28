@@ -23,7 +23,7 @@ class TaskPresenter
     public static function rows(Builder $query, int $limit = 1000): Collection
     {
         return $query->with(self::ROW_WITH)
-            ->withCount(['children', 'children as children_done' => fn ($q) => $q->whereNotNull('completed_at')])
+            ->withCount(['children', 'children as children_done' => fn ($q) => $q->whereNotNull('completed_at'), 'comments'])
             ->orderBy('tasks.position')->orderBy('tasks.id')
             ->limit($limit)->get()->map(fn (Task $t) => self::row($t));
     }
@@ -54,6 +54,7 @@ class TaskPresenter
             'tags' => $t->tags->map->only('id', 'name', 'color')->values(),
             'children_count' => (int) ($t->children_count ?? 0),
             'children_done' => (int) ($t->children_done ?? 0),
+            'comments_count' => (int) ($t->comments_count ?? 0),
             'position' => $t->position,
             'created_at' => $t->created_at?->toIso8601String(),
         ];

@@ -6,6 +6,7 @@ use App\Models\Client;
 use App\Models\Contract;
 use App\Models\Project;
 use App\Models\Quote;
+use App\Models\Task;
 use App\Models\StorageConnection;
 use App\Models\StorageFolder;
 use App\Services\Storage\Drivers\Driver;
@@ -47,6 +48,11 @@ class StorageManager
                 self::folderFor($c, $owner->client), ['العقود'])),
             $owner instanceof Quote => self::remember($c, "client:{$owner->client_id}:quotes", fn () => self::path($driver,
                 self::folderFor($c, $owner->client), ['عروض الأسعار'])),
+            // Task files go to the project's folder, or to the client's "المهام" folder.
+            $owner instanceof Task => $owner->project_id && $owner->project
+                ? self::folderFor($c, $owner->project)
+                : self::remember($c, "client:{$owner->client_id}:tasks", fn () => self::path($driver,
+                    self::folderFor($c, $owner->client), ['المهام'])),
             default => throw new StorageException('لا يوجد مجلد تخزين لهذا النوع من السجلات.'),
         };
     }
@@ -55,9 +61,12 @@ class StorageManager
     public static function forget(StorageConnection $c, Model $owner): void
     {
         $clientId = $owner instanceof Client ? $owner->id : $owner->getAttribute('client_id');
-        $keys = ['root', "client:$clientId", "client:$clientId:contracts", "client:$clientId:quotes"];
+        $keys = ['root', "client:$clientId", "client:$clientId:contracts", "client:$clientId:quotes", "client:$clientId:tasks"];
         if ($owner instanceof Project) {
             $keys[] = "project:{$owner->id}";
+        }
+        if ($owner instanceof Task && $owner->project_id) {
+            $keys[] = "project:{$owner->project_id}";
         }
         StorageFolder::where('storage_connection_id', $c->id)->whereIn('key', $keys)->delete();
     }

@@ -15,11 +15,16 @@ import TagPicker from '@/components/tasks/TagPicker.vue';
 import TaskRow from '@/components/tasks/TaskRow.vue';
 import QuickAdd from '@/components/tasks/QuickAdd.vue';
 import ChecklistPanel from '@/components/tasks/ChecklistPanel.vue';
+import TaskComments from '@/components/tasks/TaskComments.vue';
+import RichEditor from '@/components/RichEditor.vue';
+import RichView from '@/components/RichView.vue';
+import AttachmentsPanel from '@/components/AttachmentsPanel.vue';
+import { uploadAttachment } from '@/lib/upload';
 import { formatDateTime } from '@/lib/format';
-import { patchTask, dateParams, minutesLabel, parseMinutes, docToPlain, keep } from '@/lib/tasks';
+import { patchTask, dateParams, minutesLabel, parseMinutes, keep } from '@/lib/tasks';
 
 const props = defineProps({
-    task: Object, activity: Array, statuses: Array, milestones: Array, moveLists: Array, linkLists: Array,
+    task: Object, comments: Array, files: Object, activity: Array, statuses: Array, milestones: Array, moveLists: Array, linkLists: Array,
     priorities: Object, groups: Object, users: Array, tags: Array, can: Object,
 });
 const page = usePage();
@@ -28,15 +33,23 @@ const errors = computed(() => Object.values(page.props.errors ?? {}));
 const set = (data) => patchTask(t.value.id, data);
 
 const title = ref('');
-const description = ref('');
+const description = ref(null);
 const estimate = ref('');
+const descError = ref('');
 watch(t, (v) => {
     title.value = v.title;
-    description.value = docToPlain(v.description);
+    description.value = v.description;
     estimate.value = minutesLabel(v.estimate);
 }, { immediate: true });
 const saveTitle = () => title.value.trim() && title.value !== t.value.title && set({ title: title.value });
-const saveDescription = () => description.value !== docToPlain(t.value.description) && set({ description: description.value });
+const saveDescription = () => {
+    if (JSON.stringify(description.value ?? null) !== JSON.stringify(t.value.description ?? null)) set({ description: description.value ? JSON.stringify(description.value) : null });
+};
+// Pasted images become attachments of the task (stored in the connected cloud storage).
+const uploader = (file) => {
+    if (!props.files?.policy?.connected) return Promise.reject(new Error('لا توجد خدمة تخزين مربوطة لحفظ الصور.'));
+    return uploadAttachment('task', t.value.id, file).then((a) => { router.reload({ only: ['files'] }); return a; });
+};
 const saveEstimate = () => {
     const m = parseMinutes(estimate.value);
     if (m !== t.value.estimate) set({ time_estimate_min: m });
@@ -124,7 +137,10 @@ const childCan = computed(() => ({ ...props.can, create: props.can.create && t.v
 
                 <div class="card p-5">
                     <h3 class="mb-2 font-semibold text-navy">الوصف</h3>
-                    <textarea v-model="description" rows="6" class="field-input leading-relaxed" placeholder="تفاصيل المهمة، الموجز، الروابط…" :readonly="!can.edit" @blur="saveDescription" />
+                    <RichEditor v-if="can.edit" v-model="description" :users="users" :uploader="uploader" placeholder="الموجز والتفاصيل والروابط… @ للإشارة، والصق الصور مباشرة" @blur="saveDescription" @error="(e) => (descError = e)" />
+                    <RichView v-else-if="t.description" :doc="t.description" />
+                    <p v-else class="text-sm text-slate-400">لا وصف.</p>
+                    <p v-if="descError" class="field-error">{{ descError }}</p>
                 </div>
 
                 <div class="card overflow-hidden">
@@ -139,6 +155,10 @@ const childCan = computed(() => ({ ...props.can, create: props.can.create && t.v
                 </div>
 
                 <ChecklistPanel :task-id="t.id" :checklists="t.checklists" :users="users" :editable="can.edit" />
+
+                <AttachmentsPanel :files="files" title="المرفقات" :hint="t.home.project ? 'تُحفظ في مجلد المشروع' : 'تُحفظ في مجلد مهام العميل'" />
+
+                <TaskComments :task-id="t.id" :comments="comments" :users="users" :uploader="files.policy.connected && files.can_upload ? uploader : null" />
             </div>
 
             <div class="space-y-6">
