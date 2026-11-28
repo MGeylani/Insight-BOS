@@ -6,7 +6,13 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 ## الحالة الحالية (2026-11-28)
 
 - **المرحلة 1 منتهية ومنشورة** على https://test.insightpromedia.com (Plesk، PHP 8.3، Laravel Toolkit يسحب فرع `deploy`).
-- **المرحلة 2 منتهية برمجياً (الخطوات 1–6)**: CRM + الخدمات وعروض الأسعار + العقود (PDF) + المشاريع ومساحة المشروع + ربط التخزين والمرفقات. تبقى مفاتيح OAuth على الخادم (انظر `docs/DEPLOY.md`). التالي: **المرحلة 3أ (المهام)**.
+- **المرحلة 2 منتهية ومدموجة في `main`** (CRM، عروض الأسعار، العقود، المشاريع، التخزين).
+- **المرحلة 3أ (المهام) قيد البناء، فرع لكل خطوة، كل فرع مبني على الذي قبله:**
+  1. `phase-3a-tasks` ← محرك المهام ✅ (هذا الفرع)
+  2. `phase-3a-collab` ← المحرر الغني والمرفقات والتعليقات والإشعارات
+  3. `phase-3a-views` ← العروض (قائمة، لوحة، تقويم، جدول) والعروض المحفوظة والإجراءات الجماعية
+  4. `phase-3a-mywork` ← «عملي» والوارد والتذكيرات وتتبع الوقت
+  إن انقطع العمل: ابدأ من آخر فرع موجود على GitHub، واقرأ قسمه أدناه. المستخدم يدمجها بالترتيب عبر PR ثم يشغّل `migrate --force` و`db:seed --force` و`config:cache`.
 - CI: كل دفعة إلى `main` أو إلى فرع `phase-*` ← GitHub Actions يشغّل الاختبارات. فقط `main` ينشئ فرع `deploy` (vendor + public/build). **لا تعدّل `deploy` يدوياً.**
 - أسلوب العمل المعتمد: اعمل على فرع `phase-N-...`، ادفع، انتظر CI أخضر. **الدفع المباشر إلى `main` ممنوع من جلسة Claude**: المستخدم يدمج عبر Pull Request (أعطه رابط `https://github.com/MGeylani/Insight-BOS/compare/main...<branch>`)، ثم يشغّل `migrate --force` يدوياً من Laravel Toolkit إن لزم.
 - بيئة Claude السحابية لا تصل إلى Packagist: لا يمكن `composer install` محلياً. افحص PHP بـ `php -l`، وابنِ الواجهة بـ `npm ci && npm run build`، واعتمد على CI للاختبارات.
@@ -92,6 +98,22 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 - الواجهة: `components/AttachmentsPanel.vue` (سحب وإفلات، عدة ملفات، شريط تقدم، فتح، إعادة محاولة، حذف) في: تبويب «الملفات» بالمشروع، صفحة العميل، صفحة العقد («النسخة الموقّعة والمرفقات»)، صفحة العرض. `settings/Storage.vue` فيه الربط والاختبار والفصل ونموذج WebDAV وعدد الملفات المعلّقة.
 - الاختبارات: `StorageDriversTest` (كل مشغّل مقابل API محاكاة بـ `Http::fake`) و`AttachmentTest` (المسار الكامل مقابل خادم WebDAV محاكى + ربط OAuth).
 
+## ما بُني في المهام (المرحلة 3أ، الخطوة 1: `phase-3a-tasks`)
+
+- الجداول (`2026_11_29_000100_create_tasks_tables.php`): أعمدة في `clients` (`task_prefix` فريد، `task_seq`، `is_internal`)، `status_schemes` + `task_statuses` (مجموعة: `not_started | active | done | closed`)، `task_lists` (عميل، مشروع اختياري، مرحلة اختيارية، مخطط حالات خاص بها)، `tasks` (القائمة الأساسية `task_list_id`، ومنسوخ منها `client_id`/`project_id`، `parent_id` + `depth` 0–2، `seq` لكل عميل، `description` JSON + `description_text`، `start_at`/`due_at` مع `*_has_time`، `time_estimate_min`، `position` كسري، `completed_at`)، `task_list_links` (المهمة في قوائم إضافية)، `task_assignees`، `task_watchers`، `tags` + `task_tag`، `checklists` + `checklist_items` (متداخلة بـ `parent_id`). morph map: `task`، `task_list`.
+- المفردات في `config/tasks.php` (الأولويات، مجموعات الحالات، قالبا الحالات «قالب الوكالة» و«بسيط»، العميل الداخلي). `TaskSeeder` (ضمن `DatabaseSeeder`) يُنشئ قالبي الحالات والعميل الداخلي «Insight Media» ببادئة `INS`.
+- الخدمات في `app/Services/Tasks`:
+  - `TaskLists`: `internalClient()`، `prefixFor()` (تُولَّد من الحروف اللاتينية في الاسم أو من أوائل الكلمات العربية، وتُضمن فرادتها)، `nextSeq()` (قفل صف العميل)، `copyScheme()`، `create()`، `createForProject()` (قائمة لكل مرحلة من القالب، أو «المهام» بلا قالب؛ يُستدعى من `Projects::create`)، `defaultFor()` («مهام عامة» عند الإضافة على مستوى العميل)، `update()`، `delete()` (القائمة الفارغة فقط)، `saveStatuses()` (يستبدل الحالات وينقل مهام المحذوفة: `move_to[oldId] = id | "new:<index>"`).
+  - `Tasks` المصدر الوحيد لتغيير المهام: `create`، `update` (حقول جزئية، يكتب سجل النشاط بوصف عربي)، `syncPeople` (المسؤول الجديد يصبح متابعاً)، `syncTags`، `moveToList` (العميل نفسه فقط، ومعها فرعياتها، والحالة تُطابق بالاسم ثم بالمجموعة)، `addToList`/`removeFromList`، `setParent`، `reorder`، `archive`/`restore` (مع الفرعيات)، `progress()` (فرعيات + بنود التحقق)، `syncMilestone()`.
+  - `Checklists`، `TaskQuery` (الموقع + الفلاتر، يستخدمه كل عرض)، `TaskPresenter` (أشكال البيانات للواجهة + شجرة المواقع).
+- **سجل النشاط** = `activity_log` حيث `subject_type = 'task'` (لا جدول منفصل).
+- **الإنجاز**: المهمة مكتملة ما دامت حالتها في مجموعة done/closed (`completed_at`). المرحلة التي لها مهام تصبح `done` تلقائياً حين تكتمل كل مهامها الرئيسية وتعود `pending` إن أعيد فتح إحداها. `ProjectMilestone::progress()` من المهام (أو يدوي بلا مهام)، و`Project::progress()` = متوسط المراحل (أو نسبة المهام إن لم توجد مراحل).
+- **الصلاحيات** (`Task::scopeVisibleTo/isVisibleTo`): `own` = أنشأها أو مسندة إليه؛ `assigned` = ذلك + يتابعها + مهام المشاريع التي يديرها أو عضو فيها؛ `all`. تغيير المسؤولين يحتاج `tasks.assign`. القوائم (`TaskList`): المرئية = قوائم العميل الداخلي للجميع + ما أنشأه + ما فيه مهمة يراها (+ قوائم مشاريعه في `assigned`). إدارة القائمة (`canManage`): `tasks.edit` بنطاق `all`، أو منشئها، أو مدير مشروعها.
+- المسارات تحت `/tasks` (انظر `routes/web.php`): `GET /tasks?list=|project=|client=` + الفلاتر، `GET /tasks/{id}`، `POST /tasks` (`task_list_id` أو `client_id` أو `parent_id`، وبدونها ← قائمة Insight Media العامة)، `PATCH /tasks/{id}` (أي حقل: `status_id`، `priority`، `start_date/start_time`، `due_date/due_time`، `time_estimate_min`، `assignees[]`، `watchers[]`، `tags[]`، `project_milestone_id`، `description`)، `move`، `lists` (ربط/فك)، `parent`، `reorder`، `watch`، `restore`، قوائم التحقق، `/tasks/lists/*` و`/tasks/lists/{id}/statuses`، `POST /tasks/tags`. الإعدادات: `/settings/tasks` (الوسوم، قوالب الحالات، بادئة العمل الداخلي).
+- الواجهة: `pages/tasks/{Index,Show}.vue`، `pages/settings/Tasks.vue`، المكونات في `components/tasks/*` (`TaskTree`، `TaskListView`، `TaskRow` متداخل، `QuickAdd`، `StatusPill`، `PeoplePicker`، `TagPicker`، `DueInput`، `PriorityPicker`، `StatusEditor`، `ListFormModal`، `NewTaskModal`، `TaskFilters`، `ChecklistPanel`)، و`components/Dropdown.vue` (قائمة منبثقة في `<body>`) و`components/Avatar.vue`. `lib/tasks.js` (تواريخ محلية `YYYY-MM-DD[THH:mm]`، `parseMinutes`، `buildTree`، `patchTask`).
+- بادئة معرّف المهام قابلة للتعديل في نموذج العميل (CRM). مساحة المشروع تعرض قوائم المهام وتقدّم المراحل من المهام.
+- الاختبارات: `tests/Feature/TaskTest.php`.
+
 ## نطاق المرحلة 2 (العملاء والمشاريع والعقود + ربط التخزين)
 
 **CRM**
@@ -137,6 +159,18 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 6. **عدّاد جولات التعديل** المذكور مع طلبات التغيير مؤجل إلى التسليمات وبوابة المراجعة (المرحلة 6)؛ طلب التغيير الآن يحمل أثر التكلفة والوقت فقط.
 7. عرض الميزانية مقصور على من لديه `projects.manage_budget` أو `projects.approve_changes` أو `finance.view`؛ أعضاء الفريق العاديون لا يرونها.
 8. أرشفة المشروع (soft delete) لا تفك ربطه بالعرض/العقد، فلا يمكن إنشاء مشروع جديد من نفس العرض بعد أرشفة مشروعه.
+
+**المرحلة 3أ — الخطوة 1 (محرك المهام):**
+1. **كل قائمة تملك نسخة من حالاتها** (تُنسخ من القالب عند الإنشاء). تعديل حالات قائمة لا يمس غيرها، وتعديل القالب يؤثر على القوائم الجديدة فقط. في العروض التي تجمع عدة قوائم تُوحَّد الحالات بالاسم، ونقل مهمة إلى حالة من قائمة أخرى يختار الحالة بنفس الاسم في قائمتها (أو أول حالة من نفس المجموعة).
+2. **المهمة تُنقل بين قوائم العميل نفسه فقط** لأن معرّفها (ULF-142) مرتبط بالعميل. لإظهارها في قائمة عميل آخر (مثل «تصوير الأسبوع» الداخلية) تُضاف إليها كقائمة إضافية.
+3. **قوائم المشروع من القالب = قائمة لكل مرحلة** ومرتبطة بها، فتقدّم المرحلة يُحسب من مهام قائمتها. المشروع بلا قالب يأخذ قائمة واحدة «المهام». لا مهام جاهزة في القوالب الآن (قوالب المهام في 3ب).
+4. **المرحلة تُنجز تلقائياً** حين تكتمل كل مهامها الرئيسية، ويبقى الإنجاز اليدوي للمراحل التي بلا مهام.
+5. **المجموعتان «مكتملة» و«مغلقة» كلتاهما تعني منتهية** وتُحسبان في التقدم.
+6. **قوائم العميل الداخلي مرئية لكل من لديه صلاحية المهام** ويستطيع الإضافة إليها، لكن المهام نفسها تتبع قواعد النطاق (لا يرى الموظف مهام زملائه الداخلية إلا بنطاق `all` أو بالإسناد/المتابعة).
+7. منشئ المهمة هو مسؤولها الافتراضي ومتابعها؛ من لا يملك `tasks.assign` لا يغيّر المسؤولين.
+8. **البادئة تُولَّد تلقائياً** من الحروف اللاتينية في اسم العميل (ULFED ← ULF) أو من أوائل الكلمات العربية بالحروف اللاتينية (شركة النور ← SHN)، وتُعدَّل من نموذج العميل. تغييرها يغيّر عرض كل المعرّفات القديمة (الرقم ثابت والبادئة تُقرأ وقت العرض).
+9. حذف القائمة مسموح فقط إن كانت فارغة؛ المهام تُؤرشف (soft delete) مع فرعياتها وتُستعاد معها.
+10. «Insight Media» عميل عادي في جدول `clients` بعلامة `is_internal`، ويظهر في قائمة عملاء CRM أيضاً.
 
 **الخطوة 6 (التخزين والمرفقات):**
 1. **Google Drive بنطاق `drive.file`** (لا يرى إلا ما أنشأه النظام) بدل الوصول لكل الـ Drive. أأمن، لكن الملفات التي تُضاف يدوياً إلى مجلدات BOS من Drive لا تظهر في النظام (النظام لا يقرأ المجلدات أصلاً حالياً).

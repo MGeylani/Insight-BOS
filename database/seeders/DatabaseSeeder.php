@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             NumberSequenceSeeder::class,
             ServiceCategorySeeder::class,
             RoleTemplateSeeder::class,
+            TaskSeeder::class,
             AdminUserSeeder::class,
         ]);
     }

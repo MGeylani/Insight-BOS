@@ -9,6 +9,7 @@ use App\Models\ProjectMilestone;
 use App\Models\Quote;
 use App\Services\ActivityLogger;
 use App\Services\NumberSequencer;
+use App\Services\Tasks\TaskLists;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -48,6 +49,7 @@ class Projects
             if ($project->template) {
                 self::applyTemplate($project, $project->template);
             }
+            TaskLists::createForProject($project, $userId);
             self::linkSources($project);
 
             ActivityLogger::log('projects.created', $project, "إنشاء المشروع {$project->label()}", [

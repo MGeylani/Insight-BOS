@@ -24,6 +24,10 @@ use App\Http\Controllers\Settings\CurrencyController;
 use App\Http\Controllers\Settings\NumberingController;
 use App\Http\Controllers\Settings\ServiceCategoryController;
 use App\Http\Controllers\Settings\StorageController;
+use App\Http\Controllers\Tasks\ChecklistController;
+use App\Http\Controllers\Tasks\TaskController;
+use App\Http\Controllers\Tasks\TaskListController;
+use App\Http\Controllers\Tasks\TaskSettingsController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -167,6 +171,39 @@ Route::middleware('auth')->group(function () {
         Route::delete('{project}', [ProjectController::class, 'destroy'])->middleware('can:projects.delete')->name('projects.destroy');
     });
 
+    // Tasks. Record-level checks (own / assigned / all) happen in the controllers.
+    Route::prefix('tasks')->name('tasks.')->group(function () {
+        Route::middleware('can:tasks.view')->group(function () {
+            Route::get('/', [TaskController::class, 'index'])->name('index');
+            Route::get('{task}', [TaskController::class, 'show'])->whereNumber('task')->name('show');
+            Route::post('{task}/watch', [TaskController::class, 'watch'])->name('watch');
+        });
+        Route::post('/', [TaskController::class, 'store'])->middleware('can:tasks.create')->name('store');
+        Route::middleware('can:tasks.edit')->group(function () {
+            Route::patch('{task}', [TaskController::class, 'update'])->name('update');
+            Route::post('{task}/move', [TaskController::class, 'move'])->name('move');
+            Route::post('{task}/lists', [TaskController::class, 'link'])->name('link');
+            Route::delete('{task}/lists/{list}', [TaskController::class, 'unlink'])->name('unlink');
+            Route::post('{task}/parent', [TaskController::class, 'parent'])->name('parent');
+            Route::post('{task}/reorder', [TaskController::class, 'reorder'])->name('reorder');
+            Route::post('{task}/checklists', [ChecklistController::class, 'store'])->name('checklists.store');
+            Route::put('checklists/{checklist}', [ChecklistController::class, 'update'])->name('checklists.update');
+            Route::delete('checklists/{checklist}', [ChecklistController::class, 'destroy'])->name('checklists.destroy');
+            Route::post('checklists/{checklist}/items', [ChecklistController::class, 'storeItem'])->name('checklists.items.store');
+            Route::patch('checklist-items/{item}', [ChecklistController::class, 'updateItem'])->name('checklists.items.update');
+            Route::delete('checklist-items/{item}', [ChecklistController::class, 'destroyItem'])->name('checklists.items.destroy');
+            Route::post('lists', [TaskListController::class, 'store'])->name('lists.store');
+            Route::put('lists/{list}', [TaskListController::class, 'update'])->name('lists.update');
+            Route::delete('lists/{list}', [TaskListController::class, 'destroy'])->name('lists.destroy');
+            Route::put('lists/{list}/statuses', [TaskListController::class, 'statuses'])->name('lists.statuses');
+            Route::post('tags', [TaskSettingsController::class, 'storeTag'])->name('tags.store');
+        });
+        Route::middleware('can:tasks.delete')->group(function () {
+            Route::delete('{task}', [TaskController::class, 'destroy'])->name('destroy');
+            Route::post('{id}/restore', [TaskController::class, 'restore'])->whereNumber('id')->name('restore');
+        });
+    });
+
     Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('users', [UserController::class, 'index'])->middleware('can:users.view')->name('users.index');
         Route::middleware('can:users.manage')->group(function () {
@@ -196,6 +233,11 @@ Route::middleware('auth')->group(function () {
             Route::get('numbering', [NumberingController::class, 'index'])->name('numbering');
             Route::put('numbering/{numberSequence}', [NumberingController::class, 'update'])->name('numbering.update');
             Route::put('currencies/{currency}', [CurrencyController::class, 'update'])->name('currencies.update');
+            Route::get('tasks', [TaskSettingsController::class, 'index'])->name('tasks');
+            Route::put('tags/{tag}', [TaskSettingsController::class, 'updateTag'])->name('tags.update');
+            Route::delete('tags/{tag}', [TaskSettingsController::class, 'destroyTag'])->name('tags.destroy');
+            Route::put('status-templates/{scheme}', [TaskSettingsController::class, 'updateTemplate'])->name('status-templates.update');
+            Route::put('internal-prefix', [TaskSettingsController::class, 'updatePrefix'])->name('internal-prefix');
         });
         Route::middleware('can:settings.exchange_rates')->group(function () {
             Route::get('currencies', [CurrencyController::class, 'index'])->name('currencies');

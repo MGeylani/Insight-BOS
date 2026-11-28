@@ -99,15 +99,22 @@ class Project extends Model
         return $this->isOpen() && $this->due_date && $this->due_date->lt(today());
     }
 
-    /** Milestone progress in percent (done / all), or null when there are no milestones. */
+    /**
+     * Progress in percent: the average of the milestones' progress (each from its tasks, or done / not
+     * done when it has none). Without milestones: completed top-level tasks / all. Null when neither exists.
+     */
     public function progress(): ?int
     {
         $rows = $this->relationLoaded('milestones') ? $this->milestones : $this->milestones()->get();
-        if ($rows->isEmpty()) {
+        if ($rows->isNotEmpty()) {
+            return (int) round($rows->sum(fn (ProjectMilestone $m) => $m->progress()) / $rows->count());
+        }
+        $total = $this->tasks()->topLevel()->count();
+        if ($total === 0) {
             return null;
         }
 
-        return (int) round($rows->where('status', 'done')->count() / $rows->count() * 100);
+        return (int) round($this->tasks()->topLevel()->whereNotNull('completed_at')->count() / $total * 100);
     }
 
     public function budgetInBase(): ?float
@@ -134,6 +141,16 @@ class Project extends Model
     public function milestones(): HasMany
     {
         return $this->hasMany(ProjectMilestone::class)->orderBy('sort')->orderBy('id');
+    }
+
+    public function taskLists(): HasMany
+    {
+        return $this->hasMany(TaskList::class)->orderBy('sort')->orderBy('id');
+    }
+
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(Task::class);
     }
 
     public function risks(): HasMany

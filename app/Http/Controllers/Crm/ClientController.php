@@ -65,7 +65,7 @@ class ClientController extends CrmController
 
         return Inertia::render('crm/clients/Show', [
             'client' => [
-                ...$client->only('id', 'name', 'legal_name', 'type', 'industry', 'email', 'phone', 'website', 'country', 'city', 'address', 'tax_number', 'currency', 'source', 'owner_id', 'notes'),
+                ...$client->only('id', 'name', 'legal_name', 'type', 'industry', 'email', 'phone', 'website', 'country', 'city', 'address', 'tax_number', 'currency', 'source', 'owner_id', 'notes', 'task_prefix', 'is_internal'),
                 'owner' => $client->owner?->only('id', 'name'),
                 'creator' => $client->creator?->only('id', 'name'),
                 'created_at' => $client->created_at->toIso8601String(),
@@ -125,7 +125,7 @@ class ClientController extends CrmController
     /** @return array<string, mixed> */
     private function validated(Request $request): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'name' => ['required', 'string', 'max:190'],
             'legal_name' => ['nullable', 'string', 'max:190'],
             'type' => ['required', Rule::in(array_keys(config('crm.client_types')))],
@@ -141,6 +141,15 @@ class ClientController extends CrmController
             'source' => ['nullable', Rule::in(array_keys(config('crm.lead_sources')))],
             'owner_id' => ['nullable', 'exists:users,id'],
             'notes' => ['nullable', 'string', 'max:5000'],
+            'task_prefix' => ['nullable', 'string', 'max:6', 'regex:/^[A-Za-z][A-Za-z0-9]*$/',
+                Rule::unique('clients', 'task_prefix')->ignore($request->route('client')?->id)],
         ]);
+        if (! empty($data['task_prefix'])) {
+            $data['task_prefix'] = strtoupper($data['task_prefix']);
+        } else {
+            unset($data['task_prefix']); // an empty field keeps the current prefix
+        }
+
+        return $data;
     }
 }

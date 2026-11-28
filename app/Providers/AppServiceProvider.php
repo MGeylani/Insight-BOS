@@ -9,6 +9,8 @@ use App\Models\Opportunity;
 use App\Models\Project;
 use App\Models\Quote;
 use App\Models\Service;
+use App\Models\Task;
+use App\Models\TaskList;
 use App\Models\User;
 use App\Support\Permissions;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -43,6 +45,8 @@ class AppServiceProvider extends ServiceProvider
             'service' => Service::class,
             'contract' => Contract::class,
             'project' => Project::class,
+            'task' => Task::class,
+            'task_list' => TaskList::class,
         ]);
 
         Password::defaults(fn () => Password::min(10)->letters()->numbers());
