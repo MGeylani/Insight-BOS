@@ -3,20 +3,15 @@
 namespace App\Http\Controllers\Crm;
 
 use App\Http\Controllers\Controller;
+use App\Models\Client;
 use App\Models\Contract;
 use App\Models\Currency;
+use App\Models\Project;
 use App\Models\Quote;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Model;
 
 abstract class CrmController extends Controller
 {
-    /** Abort unless the current user's grant for $permission covers this record. */
-    protected function authorizeRecord(Model $record, string $permission): void
-    {
-        abort_unless(method_exists($record, 'isVisibleTo') && $record->isVisibleTo(request()->user(), $permission), 403);
-    }
-
     /** Vocabularies and pick-lists shared by CRM pages. */
     protected function options(): array
     {
@@ -77,5 +72,35 @@ abstract class CrmController extends Controller
             'monthly_fee' => $c->monthly_fee === null ? null : (float) $c->monthly_fee,
             'total' => $c->totalValue(),
         ])->all();
+    }
+
+    /** Projects of a client the viewer may see (empty without projects.view). */
+    protected function projectList(Client $client, User $user): array
+    {
+        if (! $user->hasPermission('projects.view')) {
+            return [];
+        }
+
+        return Project::visibleTo($user)->where('client_id', $client->id)->with('milestones:id,project_id,status')->latest('id')->get()
+            ->map(fn (Project $p) => [
+                ...$p->only('id', 'number', 'name', 'type', 'status'),
+                'overdue' => $p->isOverdue(),
+                'due_date' => $p->due_date?->toDateString(),
+                'progress' => $p->progress(),
+            ])->all();
+    }
+
+    /** The project a quote or contract turned into, when the viewer may open it. */
+    protected function projectLink(?int $projectId, User $user): ?array
+    {
+        $project = $projectId ? Project::find($projectId) : null;
+        if (! $project) {
+            return null;
+        }
+
+        return [
+            ...$project->only('id', 'number', 'name'),
+            'can_open' => $user->hasPermission('projects.view') && $project->isVisibleTo($user, 'projects.view'),
+        ];
     }
 }

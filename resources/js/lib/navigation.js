@@ -14,7 +14,7 @@ export const navigation = [
         label: 'العمل',
         items: [
             { label: 'العملاء والمبيعات', href: '/crm/leads', match: '/crm', icon: Users, perm: 'crm.view' },
-            { label: 'المشاريع', icon: Briefcase, perm: 'projects.view', soon: true },
+            { label: 'المشاريع', href: '/projects', match: '/projects', icon: Briefcase, perm: 'projects.view' },
             { label: 'المهام', icon: ListChecks, perm: 'tasks.view', soon: true },
             { label: 'المالية', icon: Wallet, perm: 'finance.view', soon: true },
             { label: 'الموارد البشرية', icon: UserRound, perm: 'hr.view', soon: true },

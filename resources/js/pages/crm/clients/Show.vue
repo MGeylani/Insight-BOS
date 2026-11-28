@@ -16,12 +16,13 @@ import ActivityFeed from '@/components/crm/ActivityFeed.vue';
 import DuplicateList from '@/components/crm/DuplicateList.vue';
 import QuoteList from '@/components/crm/QuoteList.vue';
 import ContractList from '@/components/crm/ContractList.vue';
+import ProjectList from '@/components/projects/ProjectList.vue';
 import { useAuth } from '@/lib/auth';
 import { formatDate } from '@/lib/format';
 import { oppStageTone, money, usd } from '@/lib/crm';
 
 const props = defineProps({
-    client: Object, contacts: Array, opportunities: Array, leads: Array, activities: Array, stats: Object, duplicates: Array, quotes: Array, quoteStatuses: Object, contracts: Array, contractStatuses: Object,
+    client: Object, contacts: Array, opportunities: Array, leads: Array, activities: Array, stats: Object, duplicates: Array, quotes: Array, quoteStatuses: Object, contracts: Array, contractStatuses: Object, projects: Array, projectStatuses: Object,
     sources: Object, leadStages: Object, ratings: Object, oppStages: Array, lostReasons: Object,
     activityTypes: Object, clientTypes: Object, users: Array, currencies: Array,
 });
@@ -111,6 +112,7 @@ const tabs = computed(() => [
                 </div>
                 <QuoteList :quotes="quotes" :statuses="quoteStatuses" :create-href="`/crm/quotes/create?client_id=${client.id}`" />
                 <ContractList :contracts="contracts" :statuses="contractStatuses" :create-href="`/crm/contracts/create?client_id=${client.id}`" />
+                <ProjectList :projects="projects" :statuses="projectStatuses" :create-href="`/projects/create?client_id=${client.id}`" />
                 <ActivityFeed :activities="activities.slice(0, 5)" subject-type="client" :subject-id="client.id" :options="options" />
             </div>
         </div>

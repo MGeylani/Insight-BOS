@@ -124,4 +124,10 @@ class Contract extends Model
     {
         return $this->belongsTo(Contract::class, 'source_contract_id')->withTrashed();
     }
+
+    /** The project this contract is delivered as (set by Services\Projects\Projects::create). */
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class)->withTrashed();
+    }
 }

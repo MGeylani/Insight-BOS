@@ -6,7 +6,7 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 ## الحالة الحالية (2026-11-28)
 
 - **المرحلة 1 منتهية ومنشورة** على https://test.insightpromedia.com (Plesk، PHP 8.3، Laravel Toolkit يسحب فرع `deploy`).
-- **المرحلة 2: الخطوات 1–4 منتهية** (CRM + كتالوج الخدمات وعروض الأسعار + العقود، مع PDF). التالي: **الخطوة 5 (المشاريع ومساحة المشروع)**.
+- **المرحلة 2: الخطوات 1–5 منتهية** (CRM + كتالوج الخدمات وعروض الأسعار + العقود، مع PDF + المشاريع ومساحة المشروع). التالي: **الخطوة 6 (ربط التخزين والمرفقات)**.
 - CI: كل دفعة إلى `main` أو إلى فرع `phase-*` ← GitHub Actions يشغّل الاختبارات. فقط `main` ينشئ فرع `deploy` (vendor + public/build). **لا تعدّل `deploy` يدوياً.**
 - أسلوب العمل المعتمد: اعمل على فرع `phase-N-...`، ادفع، انتظر CI أخضر. **الدفع المباشر إلى `main` ممنوع من جلسة Claude**: المستخدم يدمج عبر Pull Request (أعطه رابط `https://github.com/MGeylani/Insight-BOS/compare/main...<branch>`)، ثم يشغّل `migrate --force` يدوياً من Laravel Toolkit إن لزم.
 - بيئة Claude السحابية لا تصل إلى Packagist: لا يمكن `composer install` محلياً. افحص PHP بـ `php -l`، وابنِ الواجهة بـ `npm ci && npm run build`، واعتمد على CI للاختبارات.
@@ -34,7 +34,7 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 
 - المفردات في `config/crm.php`: مصادر، مراحل المحتمل، تقييم (hot/warm/cold)، مراحل الفرص مع احتمالية افتراضية، أسباب الخسارة، أنواع الأنشطة، أنواع العملاء.
 - الجداول (`2026_11_28_000100_create_crm_tables.php`): `clients`، `contacts`، `leads`، `opportunities`، `opportunity_stage_changes`، `crm_activities` (morph: lead|client|opportunity)، `notifications`.
-- morph map في `AppServiceProvider`: `lead`، `client`، `opportunity` (أضف `project` وغيره هنا لاحقاً).
+- morph map في `AppServiceProvider`: `lead`، `client`، `opportunity`، `quote`، `service`، `contract`، `project`.
 - `App\Models\Concerns\VisibleByScope`: `Model::visibleTo($user, 'crm.view')` و`$model->isVisibleTo($user, 'crm.edit')`؛ own/assigned = `owner_id` أو `created_by` (الأنشطة: `user_id` أو `created_by`). استخدمه لموديولات المشاريع أيضاً مع `scopeOwnerColumns()`.
 - `NormalizesPhone`: يحفظ آخر 9 أرقام في `phone_normalized` لكشف التكرار.
 - الخدمات في `app/Services/Crm`: `OpportunityStages::move()` (المصدر الوحيد لتغيير المرحلة؛ يسجل التاريخ ويُلزم سبب الخسارة)، `DuplicateFinder::find()`، `LeadMerger::merge()`، `LeadConverter::convert()`.
@@ -50,7 +50,7 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 - `expired` حالة محسوبة (مُرسل وتجاوز `valid_until`)، لا تُخزَّن. المجاميع محسوبة في `QuoteItem`/`Quote::totals()` بتقريب لكل بند، ونفس المنطق في `quotes/Edit.vue`.
 - الإعدادات الافتراضية (مدة الصلاحية، الشروط) في صفحة بيانات الشركة ← `PUT /settings/quote-defaults` (مفاتيح `quotes.validity_days`، `quotes.default_terms`).
 - PDF: `App\Services\Pdf\PdfRenderer` (mPDF ^8.2، يدعم تشكيل العربية وRTL) قابل لإعادة الاستخدام للعقود والفواتير. الخط `resources/fonts/madani-400|700.ttf` (محوّل من woff2)، الشعار `resources/pdf/logo.png` (مولّد من `public/images/logo.svg` بـ `rsvg-convert -w 800`). القالب `resources/views/pdf/quote.php` (PHP عادي لا Blade). المسودة بعلامة مائية «مسودة» والملغى «ملغى». الرابط `/crm/quotes/{id}/pdf` (`?download=1` للتنزيل).
-- قبول العرض ← مشروع: العمود `quotes.project_id` جاهز بلا مفتاح أجنبي؛ يُربط في الخطوة 5 (أضف زر «تحويل إلى مشروع» في `quotes/Show.vue`).
+- قبول العرض ← مشروع: زر «تحويل إلى مشروع» في `quotes/Show.vue` (العرض المقبول فقط)، و`quotes.project_id` يشير إلى المشروع (بلا مفتاح أجنبي).
 - ملاحظة بيئة: تشغيل كود مستنسخ من GitHub محلياً (مثل mPDF) محجوب في الجلسة، فاختبار PDF يتم في CI فقط.
 
 ## ما بُني في العقود (المرحلة 2، الخطوة 4)
@@ -60,11 +60,24 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 - `App\Services\Sales\Contracts` المصدر الوحيد: `saveDraft`، `issue` (رقم `CTR-…` + تثبيت `fx_rate`)، `sign` (تاريخ + اسم الموقّع ← `active`، والفرصة ← `won`)، `complete`، `terminate` (تاريخ وسبب إلزامي؛ تُلغى البنود المعلّقة التي تستحق بعد تاريخ الفسخ)، `cancel` (للمُرسل غير الموقّع)، `renew` (retainer: مدة إضافية بنفس الطول)، `duplicate`، `setMilestone` (المراحل فقط تُنجز يدوياً؛ الدفعات تُسوّى بالفواتير)، `fromQuote` (تعبئة من عرض: العميل، القيمة، نطاق العمل من البنود).
 - حالات محسوبة لا تُخزَّن: العقد `expired` (ساري وتجاوز `end_date`)، والبند `overdue` (معلّق وتجاوز `due_date`). قيمة العقد: `value` للمشروع، ومجموع الدفعات غير الملغاة للشهري (تشمل التجديدات).
 - المبالغ هي المبالغ المتفق عليها؛ الضريبة تُطبَّق عند الفوترة (المرحلة 4). **للمرحلة 4:** `contract_schedules.invoice_id` جاهز بلا مفتاح أجنبي؛ الفوترة تُنشئ فاتورة من بند دفعة معلّق ثم تضع `invoice_id` وتجعل الحالة `done` عند السداد. ملخص «دفعات مستحقة خلال 30 يوماً» في صفحة العقود يستثني البنود ذات `invoice_id`.
-- `contracts.project_id` جاهز بلا مفتاح أجنبي للخطوة 5 (أضف «إنشاء مشروع» من العقد الساري أو العرض المقبول).
+- «إنشاء مشروع» من العقد الصادر أو الساري (`contracts/Show.vue`)، و`contracts.project_id` يشير إلى المشروع (بلا مفتاح أجنبي).
 - PDF: `ContractPdf` + `resources/views/pdf/contract.php` (طرفان، نطاق العمل، المدة والمقابل، جدول الدفعات، المراحل، الشروط، خانتا توقيع). علامة مائية: مسودة / ملغى / مفسوخ. الرابط `/crm/contracts/{id}/pdf`.
 - الشروط الافتراضية لكل نوع في صفحة بيانات الشركة ← `PUT /settings/contract-defaults` (`contracts.terms_project`، `contracts.terms_retainer`).
 - الواجهات: `pages/crm/contracts/{Index,Edit,Show}.vue`، `components/crm/ContractList.vue` (في صفحات العميل والفرصة والعرض)، زر «إنشاء عقد» في صفحة العرض المُرسل/المقبول، تبويب «العقود» في `CrmTabs`.
 - النسخة الموقّعة من العقد تُرفع لاحقاً كمرفق (الخطوة 6).
+
+## ما بُني في المشاريع (المرحلة 2، الخطوة 5)
+
+- الجداول (`2026_11_28_000400_create_projects_tables.php`): `projects`، `project_members` (pivot بدور نصي)، `project_milestones`، `project_risks`، `project_issues`، `change_requests`. الـ migration يضيف تسلسل الترقيم `project` (`PRJ-2026-0001`) إن لم يوجد، والـ seeder أيضاً.
+- المفردات والقوالب في `config/projects.php`: الأنواع (هوية، حملة، فيديو، موقع، معرض، سوشال ميديا، أخرى)، الحالات (`planning | active | on_hold | completed | cancelled`)، أدوار الفريق المقترحة، تصنيفات وحالات المخاطر، خطورة وحالات المشكلات، مصادر وحالات طلبات التغيير، و**قوالب لكل نوع**: مراحل بـ `offset_days` من تاريخ البدء + مخاطر معتادة.
+- الصلاحيات `projects.*` الموجودة في الكتالوج. النطاق في `Project::scopeVisibleTo()/isVisibleTo()` (لا يستخدم `VisibleByScope`): `own` = المدير أو المنشئ، `assigned` = ذلك + أعضاء الفريق، `all` = الكل. الميزانية تُعدَّل بـ `projects.manage_budget` فقط (بدونها تُنسخ من العرض/العقد ولا تُعدَّل)، وتُعرض لمن لديه `manage_budget` أو `approve_changes` أو `finance.view`. اعتماد/رفض طلبات التغيير بـ `projects.approve_changes`.
+- `App\Services\Projects\Projects` المصدر الوحيد: `create` (رقم + قالب + فريق + ربط العرض/العقد)، `update` (يضبط `completed_at` عند تغيّر الحالة)، `syncMembers` (المدير لا يُضاف عضواً)، `applyTemplate`، `setMilestone`، `requestChange` (تسلسل `CR-n` داخل المشروع)، `approveChange` (الميزانية += أثر التكلفة، موعد التسليم += أثر الأيام، ولقطة `budget_before/due_before`)، `rejectChange` (سبب إلزامي)، `fromQuote`/`fromContract` (تعبئة النموذج).
+- قواعد الربط: العرض يجب أن يكون **مقبولاً**، والعقد **صادراً أو سارياً**، وكلاهما للعميل نفسه وغير مرتبط بمشروع آخر. المشروع لا ينتقل لعميل آخر.
+- قيم محسوبة لا تُخزَّن: المشروع `overdue` (مفتوح وتجاوز `due_date`)، المرحلة `overdue`، التقدم = المراحل المنجزة ÷ الكل، درجة الخطر = الاحتمالية × الأثر (1–9؛ 6+ مرتفع، 3–4 متوسط).
+- المسارات `/projects` (`ProjectController` + `ProjectItemController` للمراحل والمخاطر والمشكلات وطلبات التغيير؛ العنصر الفرعي يُتحقق أنه يتبع المشروع وإلا 404).
+- الواجهات: `pages/projects/{Index,Form,Show}.vue`؛ مساحة المشروع بتبويبات (الملخص، المراحل، المخاطر والمشكلات، طلبات التغيير، الملفات) والتبويب يُحفظ في `#hash`. المكونات في `components/projects/*` (`MilestonesPanel`، `RisksIssuesPanel`، `ChangesPanel`، `ProjectList` لصفحة العميل). الألوان في `lib/projects.js`. عناصر المساحة تُرسل بـ `preserveState` كي لا يضيع التبويب.
+- `authorizeRecord()` انتقل إلى `App\Http\Controllers\Controller` ليستخدمه أي موديول.
+- **للمرحلة 3أ (المهام):** المهام تتبع `project_id` و`project_milestone_id`؛ عندها يُحسب تقدم المرحلة من مهامها بدل الإنجاز اليدوي.
 
 ## نطاق المرحلة 2 (العملاء والمشاريع والعقود + ربط التخزين)
 
@@ -95,5 +108,20 @@ https://claude.ai/artifact/2VxciFCPhhQuCPQFdS8hZT
 2. ~~واجهات CRM (Kanban، العملاء، الفرص، الأنشطة، التحويل).~~ ✅
 3. ~~الخدمات وعروض الأسعار + PDF.~~ ✅
 4. ~~العقود.~~ ✅
-5. المشاريع ومساحة المشروع.
+5. ~~المشاريع ومساحة المشروع.~~ ✅
 6. ربط التخزين والمرفقات.
+
+## قرارات تحتاج مراجعة
+
+قرارات اتُّخذت أثناء العمل دون الرجوع للمستخدم (الأبسط والأنفع للوكالة). راجعها وغيّر ما لا يناسب.
+
+**الخطوة 5 (المشاريع):**
+1. **الميزانية = قيمة المشروع المتفق عليها مع العميل** (ما يدفعه العميل)، لا ميزانية التكلفة الداخلية. تُنسخ من العرض (الصافي قبل الضريبة) أو من العقد (قيمته، أو مجموع دفعات الشهري). التكلفة الفعلية تأتي لاحقاً من الساعات والمصروفات.
+2. **قوالب المشاريع في `config/projects.php`** لا في جدول قابل للتعديل من الواجهة. تعديلها يحتاج تعديل الملف؛ واجهة لإدارتها يمكن إضافتها لاحقاً (مع مهام القالب في المرحلة 3أ).
+3. أُضيف نوع **«إدارة منصات التواصل»** إلى الأنواع الخمسة في المواصفات، لأنه أشيع نوع مع العقود الشهرية. المشروع المنشأ من عقد شهري يأخذ هذا النوع افتراضياً.
+4. **رقم للمشروع** `PRJ-YYYY-NNNN` يُمنح عند الإنشاء (يُستخدم في أسماء مجلدات التخزين).
+5. المراحل تُنجز **يدوياً** الآن؛ حساب نسبتها من المهام ينتظر المرحلة 3أ.
+6. **عدّاد جولات التعديل** المذكور مع طلبات التغيير مؤجل إلى التسليمات وبوابة المراجعة (المرحلة 6)؛ طلب التغيير الآن يحمل أثر التكلفة والوقت فقط.
+7. عرض الميزانية مقصور على من لديه `projects.manage_budget` أو `projects.approve_changes` أو `finance.view`؛ أعضاء الفريق العاديون لا يرونها.
+8. أرشفة المشروع (soft delete) لا تفك ربطه بالعرض/العقد، فلا يمكن إنشاء مشروع جديد من نفس العرض بعد أرشفة مشروعه.
+
