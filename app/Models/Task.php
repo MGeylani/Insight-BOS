@@ -24,7 +24,7 @@ class Task extends Model
     public const PRIORITIES = ['urgent', 'high', 'normal', 'low'];
 
     protected $fillable = [
-        'task_list_id', 'client_id', 'project_id', 'project_milestone_id', 'parent_id', 'depth', 'seq', 'title',
+        'task_list_id', 'client_id', 'project_id', 'project_milestone_id', 'parent_id', 'task_type_id', 'depth', 'seq', 'title',
         'description', 'description_text', 'status_id', 'priority', 'start_at', 'start_has_time', 'due_at', 'due_has_time',
         'time_estimate_min', 'position', 'created_by',
     ];
@@ -197,6 +197,16 @@ class Task extends Model
     public function attachments(): \Illuminate\Database\Eloquent\Relations\MorphMany
     {
         return $this->morphMany(Attachment::class, 'attachable');
+    }
+
+    public function type(): BelongsTo
+    {
+        return $this->belongsTo(TaskType::class, 'task_type_id');
+    }
+
+    public function fieldValues(): HasMany
+    {
+        return $this->hasMany(CustomFieldValue::class);
     }
 
     public function creator(): BelongsTo

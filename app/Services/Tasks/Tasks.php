@@ -27,7 +27,7 @@ class Tasks
     public const FIELD_LABELS = [
         'title' => 'العنوان', 'status_id' => 'الحالة', 'priority' => 'الأولوية', 'start_at' => 'تاريخ البدء',
         'due_at' => 'تاريخ التسليم', 'time_estimate_min' => 'التقدير الزمني', 'description' => 'الوصف',
-        'task_list_id' => 'القائمة', 'project_milestone_id' => 'المرحلة', 'parent_id' => 'المهمة الأم',
+        'task_list_id' => 'القائمة', 'project_milestone_id' => 'المرحلة', 'parent_id' => 'المهمة الأم', 'task_type_id' => 'النوع',
     ];
 
     /** @param array<string, mixed> $data */
@@ -51,6 +51,7 @@ class Tasks
                 'project_id' => $list->project_id,
                 'project_milestone_id' => $parent?->project_milestone_id ?? $list->project_milestone_id,
                 'parent_id' => $parent?->id,
+                'task_type_id' => self::typeId($data['task_type_id'] ?? null),
                 'depth' => $parent ? $parent->depth + 1 : 0,
                 'seq' => TaskLists::nextSeq($client),
                 'title' => trim($data['title']),
@@ -100,6 +101,9 @@ class Tasks
                 $doc = RichText::normalize($data['description']);
                 $task->description = $doc;
                 $task->description_text = $doc ? RichText::toPlain($doc) : null;
+            }
+            if (array_key_exists('task_type_id', $data)) {
+                $task->task_type_id = self::typeId($data['task_type_id']);
             }
             foreach (['priority', 'time_estimate_min'] as $f) {
                 if (array_key_exists($f, $data)) {
@@ -399,6 +403,13 @@ class Tasks
             ?? $statuses->firstOrFail();
     }
 
+    /** A valid task type id, or the default type. */
+    public static function typeId(mixed $id): ?int
+    {
+        return ($id ? \App\Models\TaskType::whereKey($id)->value('id') : null)
+            ?? \App\Models\TaskType::orderByDesc('is_default')->orderBy('sort')->orderBy('id')->value('id');
+    }
+
     /** Dates arrive as date + optional time: start_date / start_time, due_date / due_time. */
     private static function fillDates(Task $task, array $data): void
     {
@@ -452,6 +463,12 @@ class Tasks
                 $label = config("tasks.priorities.$to");
                 $changes['priority'] = ['from' => $from, 'to' => $to];
                 $parts[] = "الأولوية ← $label";
+
+                continue;
+            }
+            if ($field === 'task_type_id') {
+                $changes['type'] = ['from' => $from, 'to' => $to];
+                $parts[] = 'النوع ← '.(\App\Models\TaskType::whereKey($to)->value('name') ?? '—');
 
                 continue;
             }

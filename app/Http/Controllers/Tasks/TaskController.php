@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Services\Storage\Attachments;
 use App\Services\Tasks\Comments;
 use App\Services\Tasks\BulkActions;
+use App\Services\Tasks\CustomFields;
 use App\Services\Tasks\TimeTracking;
 use App\Models\TimeEntry;
 use App\Models\Reminder;
@@ -68,7 +69,9 @@ class TaskController extends Controller
         return Inertia::render('tasks/Index', [
             'milestones' => $projectId ? \App\Models\ProjectMilestone::where('project_id', $projectId)->orderBy('sort')->get(['id', 'title']) : [],
             'tree' => TaskPresenter::tree($user),
-            'location' => TaskPresenter::location($location),
+            'location' => $loc = TaskPresenter::location($location),
+            'customFields' => CustomFields::forLocation($loc)->map->toUi()->values(),
+            'canManageFields' => CustomFields::canManage($user, $loc['type'] ?? 'all', $loc['id'] ?? null),
             'tasks' => $tasks,
             'statuses' => TaskPresenter::statusesFor($listIds),
             'filters' => $filters,
@@ -110,9 +113,13 @@ class TaskController extends Controller
         $priorities = config('tasks.priorities');
         $head = ['المعرّف', 'العنوان', 'المهمة الأم', 'العميل', 'المشروع', 'القائمة', 'الحالة', 'الأولوية', 'المسؤولون', 'البدء', 'التسليم', 'التقدير (ساعة)', 'الوسوم', 'أُنشئت', 'اكتملت'];
         $codes = $rows->pluck('code', 'id');
+        // Custom field columns chosen in the table view.
+        $cfIds = collect($view['columns'])->filter(fn ($c) => str_starts_with($c, 'cf:'))->map(fn ($c) => (int) substr($c, 3));
+        $cfs = \App\Models\CustomField::whereIn('id', $cfIds)->get()->sortBy(fn ($f) => $cfIds->search($f->id))->values();
+        $head = array_merge($head, $cfs->pluck('name')->all());
         \App\Services\ActivityLogger::log('tasks.exported', null, 'تصدير '.count($rows).' مهمة');
 
-        return response()->streamDownload(function () use ($rows, $head, $priorities, $codes) {
+        return response()->streamDownload(function () use ($rows, $head, $priorities, $codes, $cfs) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM so Excel shows Arabic correctly
             fputcsv($out, $head);
@@ -126,6 +133,7 @@ class TaskController extends Controller
                     $r['estimate'] ? round($r['estimate'] / 60, 2) : '',
                     collect($r['tags'])->pluck('name')->implode('، '),
                     substr((string) $r['created_at'], 0, 10), substr((string) $r['completed_at'], 0, 10),
+                    ...$cfs->map(fn ($f) => CustomFields::display($f, ((array) $r['fields'])[$f->id] ?? null))->all(),
                 ]);
             }
             fclose($out);
@@ -184,6 +192,8 @@ class TaskController extends Controller
                 ])->values(),
             ],
             'comments' => Comments::payload($task, $user),
+            'customFields' => CustomFields::forTask($task)->map->toUi()->values(),
+            'fieldValues' => (object) (CustomFields::valuesFor(collect([$task]))[$task->id] ?? []),
             'time' => $this->timePayload($task, $user),
             'reminders' => Reminder::where('user_id', $user->id)->where('task_id', $task->id)->whereNull('done_at')->orderBy('remind_at')->get()
                 ->map(fn ($r) => ['id' => $r->id, 'remind_at' => $r->remind_at->format('Y-m-d\TH:i'), 'note' => $r->note, 'sent' => $r->sent_at !== null]),
@@ -381,6 +391,7 @@ class TaskController extends Controller
             'due_time' => ['sometimes', 'nullable', 'date_format:H:i'],
             'time_estimate_min' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:100000'],
             'project_milestone_id' => ['sometimes', 'nullable', 'integer'],
+            'task_type_id' => ['sometimes', 'nullable', 'integer'],
             'assignees' => ['sometimes', 'nullable', 'array', 'max:30'],
             'assignees.*' => ['integer'],
             'watchers' => ['sometimes', 'nullable', 'array', 'max:50'],

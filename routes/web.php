@@ -26,6 +26,8 @@ use App\Http\Controllers\Settings\ServiceCategoryController;
 use App\Http\Controllers\Settings\StorageController;
 use App\Http\Controllers\Tasks\ChecklistController;
 use App\Http\Controllers\Tasks\CommentController;
+use App\Http\Controllers\Tasks\CustomFieldController;
+use App\Http\Controllers\Tasks\TaskTypeController;
 use App\Http\Controllers\Tasks\SavedViewController;
 use App\Http\Controllers\Tasks\MyWorkController;
 use App\Http\Controllers\Tasks\ReminderController;
@@ -234,6 +236,10 @@ Route::middleware('auth')->group(function () {
             Route::delete('lists/{list}', [TaskListController::class, 'destroy'])->name('lists.destroy');
             Route::put('lists/{list}/statuses', [TaskListController::class, 'statuses'])->name('lists.statuses');
             Route::post('tags', [TaskSettingsController::class, 'storeTag'])->name('tags.store');
+            Route::post('fields', [CustomFieldController::class, 'store'])->name('fields.store');
+            Route::put('fields/{field}', [CustomFieldController::class, 'update'])->name('fields.update');
+            Route::delete('fields/{field}', [CustomFieldController::class, 'destroy'])->name('fields.destroy');
+            Route::put('{task}/fields/{field}', [CustomFieldController::class, 'setValue'])->name('fields.value');
         });
         Route::middleware('can:tasks.delete')->group(function () {
             Route::delete('{task}', [TaskController::class, 'destroy'])->name('destroy');
@@ -275,6 +281,9 @@ Route::middleware('auth')->group(function () {
             Route::delete('tags/{tag}', [TaskSettingsController::class, 'destroyTag'])->name('tags.destroy');
             Route::put('status-templates/{scheme}', [TaskSettingsController::class, 'updateTemplate'])->name('status-templates.update');
             Route::put('internal-prefix', [TaskSettingsController::class, 'updatePrefix'])->name('internal-prefix');
+            Route::post('task-types', [TaskTypeController::class, 'store'])->name('task-types.store');
+            Route::put('task-types/{type}', [TaskTypeController::class, 'update'])->name('task-types.update');
+            Route::delete('task-types/{type}', [TaskTypeController::class, 'destroy'])->name('task-types.destroy');
         });
         Route::middleware('can:settings.exchange_rates')->group(function () {
             Route::get('currencies', [CurrencyController::class, 'index'])->name('currencies');

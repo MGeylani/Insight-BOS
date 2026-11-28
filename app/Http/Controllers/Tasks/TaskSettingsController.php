@@ -24,7 +24,23 @@ class TaskSettingsController extends Controller
                 ->map(fn ($s) => ['id' => $s->id, 'name' => $s->name, 'is_default' => $s->is_default, 'statuses' => $s->statuses->map->toUi()->values()]),
             'groups' => config('tasks.status_groups'),
             'internal' => TaskLists::internalClient()->only('id', 'name', 'task_prefix'),
+            'types' => \App\Models\TaskType::with('fields:id')->orderBy('sort')->orderBy('id')->get()->map->toUi()->values(),
+            'icons' => TaskTypeController::ICONS,
+            'fields' => \App\Models\CustomField::with('types:id')->orderBy('sort')->orderBy('id')->get()
+                ->map(fn ($f) => [...$f->toUi(), 'scope_label' => self::scopeLabel($f)])->values(),
+            'fieldTypes' => \App\Services\Tasks\CustomFields::TYPE_LABELS,
+            'currencies' => \App\Models\Currency::where('is_active', true)->pluck('code'),
         ]);
+    }
+
+    private static function scopeLabel(\App\Models\CustomField $f): string
+    {
+        return match ($f->scope_type) {
+            'client' => 'العميل: '.(\App\Models\Client::withTrashed()->whereKey($f->scope_id)->value('name') ?? '—'),
+            'project' => 'المشروع: '.(\App\Models\Project::withTrashed()->whereKey($f->scope_id)->value('name') ?? '—'),
+            'list' => 'القائمة: '.(\App\Models\TaskList::withTrashed()->whereKey($f->scope_id)->value('name') ?? '—'),
+            default => 'كل المهام',
+        };
     }
 
     /** Anyone who edits tasks may add a tag from the tag picker. */

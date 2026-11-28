@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\DB;
  */
 class TaskQuery
 {
-    public const FILTER_KEYS = ['search', 'assignees', 'statuses', 'groups', 'priorities', 'tags', 'due', 'closed', 'created_by'];
+    public const FILTER_KEYS = ['search', 'assignees', 'statuses', 'groups', 'priorities', 'tags', 'due', 'closed', 'created_by', 'types', 'fields'];
 
     /**
      * @param  array<string, mixed>  $location
@@ -78,6 +78,23 @@ class TaskQuery
         if ($tags = array_filter(array_map('intval', (array) ($f['tags'] ?? [])))) {
             $q->whereIn('tasks.id', DB::table('task_tag')->select('task_id')->whereIn('tag_id', $tags));
         }
+        if ($types = array_filter(array_map('intval', (array) ($f['types'] ?? [])))) {
+            $q->whereIn('tasks.task_type_id', $types);
+        }
+        // Custom field filters: fields[<id>] = choice id / 1|0 / user id / text (exact).
+        foreach ((array) ($f['fields'] ?? []) as $fid => $val) {
+            if (! is_numeric($fid) || $val === null || $val === '') {
+                continue;
+            }
+            $field = \App\Models\CustomField::find((int) $fid);
+            if (! $field) {
+                continue;
+            }
+            $q->whereIn('tasks.id', DB::table('custom_field_values')->select('task_id')->where('custom_field_id', $field->id)
+                ->when(in_array($field->type, ['labels', 'people', 'file'], true),
+                    fn ($w) => $w->where('sort_value', 'like', '%,'.str_replace(['%', '_'], '', (string) $val).',%'),
+                    fn ($w) => $w->where('sort_value', $field->type === 'checkbox' ? (filter_var($val, FILTER_VALIDATE_BOOL) ? '1' : '0') : (string) $val)));
+        }
         match ($f['due'] ?? null) {
             'overdue' => $q->overdue(),
             'today' => $q->whereDate('tasks.due_at', today()),
@@ -103,7 +120,10 @@ class TaskQuery
             'created' => $q->orderBy('tasks.created_at', $dir),
             'updated' => $q->orderBy('tasks.updated_at', $dir),
             'title' => $q->orderBy('tasks.title', $dir),
-            default => null,
+            default => preg_match('/^cf:(\d+)$/', $sort, $m)
+                ? $q->orderByRaw('(select sort_value from custom_field_values where custom_field_values.task_id = tasks.id and custom_field_id = ?) is null', [(int) $m[1]])
+                    ->orderBy(DB::table('custom_field_values')->select('sort_value')->whereColumn('custom_field_values.task_id', 'tasks.id')->where('custom_field_id', (int) $m[1])->limit(1), $dir)
+                : null,
         };
 
         return $q->orderBy('tasks.position')->orderBy('tasks.id');
@@ -118,11 +138,15 @@ class TaskQuery
             if ($v === null || $v === '' || $v === []) {
                 continue;
             }
-            $out[$k] = match ($k) {
+            $val = match ($k) {
                 'search', 'due' => mb_substr((string) $v, 0, 120),
                 'closed' => filter_var($v, FILTER_VALIDATE_BOOL),
+                'fields' => array_map(fn ($x) => mb_substr((string) $x, 0, 120), array_filter((array) $v, fn ($x, $k) => is_numeric($k) && is_scalar($x) && $x !== '', ARRAY_FILTER_USE_BOTH)) ?: null,
                 default => array_values(array_slice(array_map(fn ($x) => is_numeric($x) ? (int) $x : (string) $x, (array) $v), 0, 100)),
             };
+            if ($val !== null) {
+                $out[$k] = $val;
+            }
         }
 
         return $out;
