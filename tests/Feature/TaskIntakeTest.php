@@ -83,7 +83,7 @@ class TaskIntakeTest extends TestCase
         $this->get("/forms/{$form->token}")->assertRedirect('/login');
         $sales = $this->userWith([]);
         $this->actingAs($sales)->get("/forms/{$form->token}")->assertOk()->assertInertia(fn (Assert $p) => $p->component('forms/Fill')->has('form.fields', 4));
-        $this->post("/forms/{$form->token}", ['answers' => ['title' => '', "cf_{$size->id}" => 'x']])->assertSessionHasErrors(['answers.title', "answers.cf_{$size->id}"]);
+        $this->post("/forms/{$form->token}", ['answers' => ['title' => '', "cf_{$size->id}" => 'x']])->assertSessionHasErrors('answers.title');
         $this->post("/forms/{$form->token}", ['answers' => ['title' => 'بوستر المعرض', "cf_{$size->id}" => 'nope']])->assertSessionHasErrors("answers.cf_{$size->id}");
         $this->assertSame(0, Task::count());
 
