@@ -37,7 +37,7 @@ class Workload
             ->where(fn ($q) => $q->where('tasks.start_at', '<=', $to->copy()->endOfDay())->orWhere(fn ($w) => $w->whereNull('tasks.start_at')->where('tasks.due_at', '<=', $to->copy()->endOfDay())))
             ->get();
         $assignees = DB::table('task_assignees')->whereIn('task_id', $tasks->pluck('id'))->get()->groupBy('task_id');
-        $off = TimeOff::whereIn('user_id', $ids)->where('starts_on', '<=', $to->toDateString())->where('ends_on', '>=', $from->toDateString())->get()->groupBy('user_id');
+        $off = TimeOff::whereIn('user_id', $ids)->whereDate('starts_on', '<=', $to->toDateString())->whereDate('ends_on', '>=', $from->toDateString())->get()->groupBy('user_id');
 
         $people = [];
         foreach ($users as $u) {

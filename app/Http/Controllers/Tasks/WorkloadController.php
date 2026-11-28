@@ -35,7 +35,7 @@ class WorkloadController extends Controller
             'projects' => Project::visibleTo($user)->whereIn('status', ['planning', 'active', 'on_hold'])->orderBy('name')->get(['id', 'name']),
             ...Workload::build($people, $start, $end, $projectId),
             'timeOff' => TimeOff::with('user:id,name')->whereIn('user_id', $people->pluck('id'))
-                ->where('ends_on', '>=', $start->toDateString())->where('starts_on', '<=', $end->toDateString())->orderBy('starts_on')->get()
+                ->whereDate('ends_on', '>=', $start->toDateString())->whereDate('starts_on', '<=', $end->toDateString())->orderBy('starts_on')->get()
                 ->map(fn ($o) => [...$o->only('id', 'user_id', 'type', 'note'), 'user' => $o->user?->name, 'starts_on' => $o->starts_on->toDateString(), 'ends_on' => $o->ends_on->toDateString()]),
             'canManage' => $this->canManage($user),
             'me' => $user->id,
