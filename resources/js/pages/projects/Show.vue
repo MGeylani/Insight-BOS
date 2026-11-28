@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
     Pencil, Trash2, Building2, FileText, FileSignature, UserRound, CalendarDays, Users, LayoutDashboard, Flag,
-    ShieldAlert, GitPullRequestArrow, FolderOpen, AlertTriangle,
+    ShieldAlert, GitPullRequestArrow, FolderOpen, AlertTriangle, ListChecks,
 } from '@lucide/vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import PageHeader from '@/components/PageHeader.vue';
@@ -18,7 +18,7 @@ import { money, usd } from '@/lib/crm';
 import { projectStatusTone, daysLabel, riskLevelTone } from '@/lib/projects';
 
 const props = defineProps({
-    project: Object, milestones: Array, risks: Array, issues: Array, changes: Array, log: Array, can: Object, files: Object,
+    project: Object, milestones: Array, taskLists: { type: Array, default: null }, risks: Array, issues: Array, changes: Array, log: Array, can: Object, files: Object,
     types: Object, statuses: Object, memberRoles: Array, riskLevels: Object, riskCategories: Object, riskStatuses: Object,
     issueSeverities: Object, issueStatuses: Object, changeSources: Object, changeStatuses: Object, users: Array,
 });
@@ -155,6 +155,18 @@ const destroy = () => confirm(`أرشفة المشروع ${p.value.name}؟`) && 
                         <div class="flex items-center gap-2"><CalendarDays class="size-4 text-slate-400" />أُنشئ {{ formatDate(p.created_at) }}<template v-if="p.creator"> · {{ p.creator.name }}</template></div>
                         <div v-if="p.completed_at" class="text-xs text-emerald-700">اكتمل {{ formatDate(p.completed_at) }}</div>
                     </dl>
+                </div>
+                <div v-if="taskLists" class="card p-5">
+                    <div class="mb-3 flex items-center gap-2"><ListChecks class="size-4 text-slate-400" /><h3 class="me-auto font-semibold text-navy">قوائم المهام</h3>
+                        <Link :href="`/tasks?project=${p.id}`" class="text-xs text-brand hover:underline">كل المهام</Link>
+                    </div>
+                    <ul v-if="taskLists.length" class="space-y-2 text-sm">
+                        <li v-for="l in taskLists" :key="l.id" class="flex items-center justify-between gap-2">
+                            <Link :href="`/tasks?list=${l.id}`" class="truncate text-slate-700 hover:text-brand hover:underline">{{ l.name }}</Link>
+                            <span class="num shrink-0 text-xs text-slate-500">{{ l.done }}/{{ l.total }}</span>
+                        </li>
+                    </ul>
+                    <p v-else class="text-sm text-slate-500">لا توجد قوائم بعد. <Link :href="`/tasks?project=${p.id}`" class="text-brand hover:underline">أنشئ قائمة</Link></p>
                 </div>
                 <div class="card p-5">
                     <div class="mb-3 flex items-center gap-2"><Users class="size-4 text-slate-400" /><h3 class="me-auto font-semibold text-navy">الفريق</h3>

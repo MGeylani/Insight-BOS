@@ -18,8 +18,13 @@ class Client extends Model
 
     protected $fillable = [
         'name', 'legal_name', 'type', 'industry', 'email', 'phone', 'website', 'country', 'city',
-        'address', 'tax_number', 'currency', 'source', 'owner_id', 'notes', 'created_by',
+        'address', 'tax_number', 'currency', 'source', 'owner_id', 'notes', 'created_by', 'task_prefix',
     ];
+
+    protected function casts(): array
+    {
+        return ['is_internal' => 'boolean', 'task_seq' => 'integer'];
+    }
 
     public function owner(): BelongsTo
     {
@@ -69,5 +74,10 @@ class Client extends Model
     public function projects(): HasMany
     {
         return $this->hasMany(Project::class)->latest('id');
+    }
+
+    public function taskLists(): HasMany
+    {
+        return $this->hasMany(TaskList::class)->orderBy('sort')->orderBy('id');
     }
 }

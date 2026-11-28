@@ -47,6 +47,10 @@ const label = { pending: 'قيد العمل', overdue: 'متأخرة', done: 'م
                 <div class="min-w-0 flex-1">
                     <p class="font-medium" :class="m.status === 'done' ? 'text-slate-500 line-through' : 'text-slate-800'">{{ m.title }}</p>
                     <p v-if="m.details" class="whitespace-pre-line text-xs text-slate-500">{{ m.details }}</p>
+                    <div v-if="m.tasks_total" class="mt-1.5 flex items-center gap-2 text-xs text-slate-500">
+                        <div class="h-1.5 w-28 overflow-hidden rounded-full bg-slate-100"><div class="brand-gradient h-full rounded-full" :style="{ width: m.progress + '%' }" /></div>
+                        <span class="num">{{ m.tasks_done }}/{{ m.tasks_total }}</span> مهمة
+                    </div>
                     <p v-if="m.done_at" class="text-xs text-emerald-700">أُنجزت {{ formatDate(m.done_at) }}<template v-if="m.done_by"> · {{ m.done_by }}</template></p>
                 </div>
                 <div class="text-end text-xs">

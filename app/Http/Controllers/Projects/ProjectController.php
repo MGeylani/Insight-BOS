@@ -31,7 +31,8 @@ class ProjectController extends Controller
         $user = $request->user();
         $f = $request->only('search', 'status', 'type', 'manager', 'client');
 
-        $projects = Project::visibleTo($user)->with(['client:id,name', 'manager:id,name', 'milestones:id,project_id,status'])
+        $projects = Project::visibleTo($user)->with(['client:id,name', 'manager:id,name',
+            'milestones' => fn ($q) => ProjectMilestone::withTaskCounts($q->select('id', 'project_id', 'status'))])
             ->withCount(['issues as open_issues_count' => fn ($q) => $q->where('status', '!=', 'resolved')])
             ->when($f['search'] ?? null, fn ($q, $s) => $q->where(fn ($q) => $q->where('name', 'like', "%$s%")->orWhere('number', 'like', "%$s%")
                 ->orWhereHas('client', fn ($c) => $c->where('name', 'like', "%$s%"))))
@@ -119,7 +120,7 @@ class ProjectController extends Controller
         $user = $request->user();
         $project->load([
             'client:id,name', 'quote:id,number,title', 'contract:id,number,title,type', 'manager:id,name', 'creator:id,name', 'members:id,name',
-            'milestones.doneBy:id,name', 'risks.owner:id,name', 'issues.owner:id,name', 'issues.creator:id,name',
+            'milestones' => fn ($q) => ProjectMilestone::withTaskCounts($q->with('doneBy:id,name')), 'risks.owner:id,name', 'issues.owner:id,name', 'issues.creator:id,name',
             'changeRequests.creator:id,name', 'changeRequests.decider:id,name',
         ]);
         $seeBudget = $this->canSeeBudget($user);
@@ -142,6 +143,9 @@ class ProjectController extends Controller
             'milestones' => $project->milestones->map(fn (ProjectMilestone $m) => [
                 ...$m->only('id', 'title', 'details', 'sort'),
                 'status' => $m->displayStatus(),
+                'progress' => $m->progress(),
+                'tasks_total' => (int) ($m->tasks_total ?? 0),
+                'tasks_done' => (int) ($m->tasks_done ?? 0),
                 'due_date' => $m->due_date?->toDateString(),
                 'done_at' => $m->done_at?->toIso8601String(),
                 'done_by' => $m->doneBy?->name,
@@ -174,6 +178,9 @@ class ProjectController extends Controller
                 'user' => $l->user?->name, 'created_at' => $l->created_at?->toIso8601String(),
             ]),
             'files' => Attachments::payload($project, $user),
+            'taskLists' => $user->hasPermission('tasks.view') ? $project->taskLists()
+                ->withCount(['tasks as total' => fn ($q) => $q->whereNull('parent_id'), 'tasks as done' => fn ($q) => $q->whereNull('parent_id')->whereNotNull('completed_at')])
+                ->get()->map(fn ($l) => [...$l->only('id', 'name', 'project_milestone_id'), 'total' => (int) $l->total, 'done' => (int) $l->done])->values() : null,
             'can' => [
                 'edit' => $project->isVisibleTo($user, 'projects.edit'),
                 'delete' => $project->isVisibleTo($user, 'projects.delete'),

@@ -10,7 +10,7 @@ const props = defineProps({ client: Object, options: Object });
 
 const blank = () => ({
     name: '', legal_name: '', type: 'company', industry: '', email: '', phone: '', website: '', country: '', city: '',
-    address: '', tax_number: '', currency: 'USD', source: '', owner_id: '', notes: '',
+    address: '', tax_number: '', currency: 'USD', source: '', owner_id: '', notes: '', task_prefix: '',
 });
 const form = useForm(blank());
 watch(open, (v) => {
@@ -44,6 +44,9 @@ function save() {
             <Field label="عملة التعامل" id="cl-cur"><select id="cl-cur" v-model="form.currency" class="field-input"><option v-for="c in options.currencies" :key="c">{{ c }}</option></select></Field>
             <Field label="المصدر" id="cl-s"><select id="cl-s" v-model="form.source" class="field-input"><option value="">—</option><option v-for="(l, k) in options.sources" :key="k" :value="k">{{ l }}</option></select></Field>
             <Field label="مسؤول الحساب" id="cl-o"><select id="cl-o" v-model="form.owner_id" class="field-input"><option value="">أنا</option><option v-for="u in options.users" :key="u.id" :value="u.id">{{ u.name }}</option></select></Field>
+            <Field label="بادئة معرّف المهام" id="cl-tp" :error="form.errors.task_prefix" hint="مثل ULF ← ULF-142. تُولَّد تلقائياً إن تُركت فارغة.">
+                <input id="cl-tp" v-model="form.task_prefix" dir="ltr" maxlength="6" class="field-input text-start uppercase" placeholder="ULF" />
+            </Field>
             <Field label="ملاحظات" id="cl-no" class="sm:col-span-3"><textarea id="cl-no" v-model="form.notes" rows="3" class="field-input" /></Field>
         </div>
         <template #footer>
