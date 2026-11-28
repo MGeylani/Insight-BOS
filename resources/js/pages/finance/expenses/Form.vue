@@ -12,7 +12,7 @@ import { money } from '@/lib/crm';
 
 const props = defineProps({
     expense: Object, categories: Array, accounts: Array, advances: Array, vendors: Array, projects: Array,
-    people: Array, currencies: Array, paidBy: Object, canVendor: Boolean,
+    people: Array, costCenters: { type: Array, default: () => [] }, currencies: Array, paidBy: Object, canVendor: Boolean,
 });
 const editing = computed(() => Boolean(props.expense.id));
 const today = new Date().toISOString().slice(0, 10);
@@ -20,7 +20,7 @@ const form = useForm({
     date: props.expense.date ?? today, category_id: props.expense.category_id ?? '', description: props.expense.description ?? '',
     amount: props.expense.amount, currency: props.expense.currency ?? 'USD', paid_by: props.expense.paid_by ?? 'employee',
     account_id: props.expense.account_id ?? '', advance_id: props.expense.advance_id ?? '', vendor_id: props.expense.vendor_id ?? '',
-    vendor_ref: props.expense.vendor_ref ?? '', due_date: props.expense.due_date ?? '', project_id: props.expense.project_id ?? '',
+    vendor_ref: props.expense.vendor_ref ?? '', due_date: props.expense.due_date ?? '', project_id: props.expense.project_id ?? '', cost_center_id: props.expense.cost_center_id ?? '',
     user_id: props.expense.user_id ?? '', notes: props.expense.notes ?? '',
 });
 
@@ -74,6 +74,7 @@ const addVendor = async () => {
                 <Field v-if="people.length" label="الموظف" id="us" :error="form.errors.user_id" hint="من صرف المبلغ أو طلبه"><select id="us" v-model="form.user_id" class="field-input"><option v-for="p in people" :key="p.id" :value="p.id">{{ p.name }}</option></select></Field>
                 <Field label="المشروع" id="pr" :error="form.errors.project_id" hint="اختياري؛ يدخل في تكلفة المشروع"><select id="pr" v-model="form.project_id" class="field-input"><option value="">— بلا مشروع —</option><option v-for="p in projects" :key="p.id" :value="p.id">{{ p.number }} · {{ p.name }}</option></select></Field>
 
+                <Field v-if="costCenters.length" label="مركز التكلفة" id="cc" :error="form.errors.cost_center_id" hint="اختياري"><select id="cc" v-model="form.cost_center_id" class="field-input"><option value="">—</option><option v-for="c in costCenters" :key="c.id" :value="c.id">{{ c.name }}</option></select></Field>
                 <div class="sm:col-span-2">
                     <p class="field-label mb-2">من دفع؟</p>
                     <div class="grid gap-2 sm:grid-cols-4">

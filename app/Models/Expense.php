@@ -16,7 +16,7 @@ class Expense extends Model
 {
     protected $fillable = [
         'date', 'category_id', 'description', 'amount', 'currency', 'fx_rate', 'paid_by', 'account_id', 'advance_id', 'vendor_id',
-        'vendor_ref', 'due_date', 'project_id', 'client_id', 'user_id', 'notes', 'created_by',
+        'vendor_ref', 'due_date', 'project_id', 'client_id', 'cost_center_id', 'user_id', 'notes', 'created_by',
     ];
 
     protected function casts(): array
@@ -133,6 +133,11 @@ class Expense extends Model
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class)->withTrashed();
+    }
+
+    public function costCenter(): BelongsTo
+    {
+        return $this->belongsTo(CostCenter::class)->withTrashed();
     }
 
     public function account(): BelongsTo

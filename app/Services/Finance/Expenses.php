@@ -96,7 +96,10 @@ class Expenses
             }
         }
 
-        return self::decide($e, $by, 'approved', $note, 'اعتماد');
+        $e = self::decide($e, $by, 'approved', $note, 'اعتماد');
+        Budgets::checkExpense($e);
+
+        return $e;
     }
 
     public static function reject(Expense $e, User $by, string $reason): Expense

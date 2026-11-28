@@ -74,6 +74,7 @@ const cancel = () => cancelForm.post(`/finance/expenses/${e.value.id}/cancel`, {
                         </div>
                         <div v-if="e.vendor" class="flex items-center gap-2"><Truck class="size-4 text-slate-400" /> <Link :href="`/finance/vendors/${e.vendor.id}`" class="text-brand hover:underline">{{ e.vendor.name }}</Link> <span v-if="e.vendor_ref" class="num text-xs text-slate-500">#{{ e.vendor_ref }}</span></div>
                         <div v-if="e.project" class="flex items-center gap-2"><Briefcase class="size-4 text-slate-400" /> <Link :href="`/projects/${e.project.id}`" class="text-brand hover:underline">{{ e.project.number }} · {{ e.project.name }}</Link></div>
+                        <div v-if="e.cost_center" class="flex items-center gap-2"><Building2 class="size-4 text-slate-400" /> مركز التكلفة: {{ e.cost_center.name }}</div>
                         <div v-if="e.due_date" class="flex items-center gap-2"><CalendarDays class="size-4 text-slate-400" /> يستحق للمورد {{ formatDate(e.due_date) }} <span v-if="e.owed > 0" class="num font-semibold text-red-600">· متبقٍ {{ money(e.owed, e.currency) }}</span></div>
                         <div v-if="e.reimbursement" class="flex items-center gap-2"><Landmark class="size-4 text-slate-400" /> عُوِّض في {{ formatDate(e.reimbursement.date) }} من {{ e.reimbursement.account }}</div>
                     </dl>

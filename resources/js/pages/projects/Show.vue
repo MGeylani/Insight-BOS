@@ -14,6 +14,7 @@ import RisksIssuesPanel from '@/components/projects/RisksIssuesPanel.vue';
 import ChangesPanel from '@/components/projects/ChangesPanel.vue';
 import AttachmentsPanel from '@/components/AttachmentsPanel.vue';
 import InvoiceList from '@/components/finance/InvoiceList.vue';
+import ProjectProfit from '@/components/finance/ProjectProfit.vue';
 import { formatDate, formatDateTime } from '@/lib/format';
 import { money, usd } from '@/lib/crm';
 import { projectStatusTone, daysLabel, riskLevelTone } from '@/lib/projects';
@@ -24,6 +25,7 @@ const props = defineProps({
     types: Object, statuses: Object, memberRoles: Array, riskLevels: Object, riskCategories: Object, riskStatuses: Object,
     issueSeverities: Object, issueStatuses: Object, changeSources: Object, changeStatuses: Object, users: Array,
     invoices: { type: Array, default: () => [] }, invoiceStatuses: { type: Object, default: () => ({}) },
+    profit: { type: Object, default: null }, budgets: { type: Array, default: () => [] },
 });
 const page = usePage();
 const p = computed(() => props.project);
@@ -164,6 +166,7 @@ const destroy = () => confirm(`أرشفة المشروع ${p.value.name}؟`) && 
                         <div v-if="p.completed_at" class="text-xs text-emerald-700">اكتمل {{ formatDate(p.completed_at) }}</div>
                     </dl>
                 </div>
+                <ProjectProfit v-if="profit" :profit="profit" :budgets="budgets" :project-id="p.id" :can-budget="can.manage_budgets" :can-expense="can.add_expense" />
                 <InvoiceList v-if="invoiceStatuses.draft" :invoices="invoices" :statuses="invoiceStatuses"
                     :create-href="can.create_invoice ? `/finance/invoices/create?project_id=${p.id}` : null" />
                 <div v-if="taskLists" class="card p-5">

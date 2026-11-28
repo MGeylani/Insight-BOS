@@ -183,6 +183,10 @@ class ProjectController extends Controller
             'files' => Attachments::payload($project, $user),
             'invoices' => \App\Services\Finance\InvoiceLists::for($user, fn ($q) => $q->where('project_id', $project->id)),
             'invoiceStatuses' => $user->hasPermission('finance.view') ? config('finance.invoice_statuses') : (object) [],
+            // Profit (revenue vs expenses and labor) and budgets: for whoever sees the project's budget.
+            'profit' => $seeBudget ? \App\Services\Finance\Profitability::project($project) : null,
+            'budgets' => $seeBudget ? \App\Models\Budget::with('lines')->where('project_id', $project->id)->orderBy('period_start')->get()
+                ->map(fn ($b) => [...$b->only('id', 'name', 'alert_percent'), ...collect(\App\Services\Finance\Budgets::report($b))->only('planned', 'actual', 'percent')->all()]) : [],
             'taskLists' => $user->hasPermission('tasks.view') ? $project->taskLists()
                 ->withCount(['tasks as total' => fn ($q) => $q->whereNull('parent_id'), 'tasks as done' => fn ($q) => $q->whereNull('parent_id')->whereNotNull('completed_at')])
                 ->get()->map(fn ($l) => [...$l->only('id', 'name', 'project_milestone_id'), 'total' => (int) $l->total, 'done' => (int) $l->done])->values() : null,
@@ -193,6 +197,8 @@ class ProjectController extends Controller
                 'approve' => $project->isVisibleTo($user, 'projects.approve_changes'),
                 'see_budget' => $seeBudget,
                 'create_invoice' => $user->hasPermission('finance.create'),
+                'manage_budgets' => \App\Services\Finance\Budgets::canManage($user, $project),
+                'add_expense' => $user->hasPermission('finance.expense'),
             ],
             ...$this->vocab(),
             'users' => $this->users(),
