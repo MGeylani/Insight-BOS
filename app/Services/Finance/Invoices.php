@@ -95,7 +95,7 @@ class Invoices
                     'sort' => $i,
                 ]);
                 if ($schedule) {
-                    $schedule->update(['invoice_id' => $invoice->id]);
+                    $schedule->forceFill(['invoice_id' => $invoice->id])->save();
                 }
                 $ids = collect($row['time_ids'] ?? [])->map(fn ($v) => (int) $v)->intersect($time->keys());
                 if ($ids->isNotEmpty()) {
