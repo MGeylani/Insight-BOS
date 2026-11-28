@@ -110,6 +110,8 @@ class MyWorkController extends Controller
 
         return Inertia::render('tasks/MyTime', [
             'who' => $who->only('id', 'name'),
+            'timesheet' => \App\Services\Tasks\Timesheets::payload(\App\Services\Tasks\Timesheets::for($who->id, $start)),
+            'canApprove' => \App\Services\Tasks\Timesheets::canApprove($user, $who),
             'week' => ['start' => $start->toDateString(), 'end' => $end->toDateString()],
             'entries' => (clone $q)->with(['task:id,title,seq,client_id,project_id', 'task.client:id,task_prefix', 'project:id,name'])->orderBy('started_at')->get()
                 ->map(fn (TimeEntry $e) => [

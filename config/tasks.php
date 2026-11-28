@@ -7,7 +7,10 @@
 */
 
 return [
-    'max_depth' => 2, // 0 = task, 1 = subtask, 2 = sub-subtask (three levels)
+    'max_depth' => 2,
+
+    // Default working days for capacity (0 = Sunday … 6 = Saturday): Monday to Friday. Per person in users.work_days.
+    'work_days' => [1, 2, 3, 4, 5], // 0 = task, 1 = subtask, 2 = sub-subtask (three levels)
 
     'priorities' => [
         'urgent' => 'عاجلة',

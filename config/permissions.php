@@ -26,7 +26,7 @@ return [
         ],
         'tasks' => [
             'label' => 'المهام',
-            'actions' => ['view' => 'عرض', 'create' => 'إنشاء', 'edit' => 'تعديل', 'delete' => 'أرشفة', 'assign' => 'إسناد', 'track_time' => 'تسجيل الوقت'],
+            'actions' => ['view' => 'عرض', 'create' => 'إنشاء', 'edit' => 'تعديل', 'delete' => 'أرشفة', 'assign' => 'إسناد', 'track_time' => 'تسجيل الوقت', 'approve_time' => 'اعتماد جداول الساعات'],
         ],
         'finance' => [
             'label' => 'المالية',

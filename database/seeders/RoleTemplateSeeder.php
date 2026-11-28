@@ -12,7 +12,7 @@ class RoleTemplateSeeder extends Seeder
         $all = fn (array $keys) => array_fill_keys($keys, 'all');
 
         $templates = [
-            'مدير مشاريع' => $all(['crm.view', 'projects.view', 'projects.create', 'projects.edit', 'projects.manage_budget', 'projects.approve_changes', 'tasks.view', 'tasks.create', 'tasks.edit', 'tasks.assign', 'tasks.track_time', 'assets.view', 'comms.view', 'reports.view'])
+            'مدير مشاريع' => $all(['crm.view', 'projects.view', 'projects.create', 'projects.edit', 'projects.manage_budget', 'projects.approve_changes', 'tasks.view', 'tasks.create', 'tasks.edit', 'tasks.assign', 'tasks.track_time', 'tasks.approve_time', 'assets.view', 'comms.view', 'reports.view'])
                 + ['hr.approve_leave' => 'assigned', 'finance.create' => 'own'],
             'مبيعات' => $all(['crm.view', 'crm.create', 'crm.edit', 'crm.export', 'crm.convert', 'comms.view'])
                 + ['projects.view' => 'assigned', 'tasks.view' => 'own', 'tasks.edit' => 'own', 'tasks.track_time' => 'own'],
