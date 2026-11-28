@@ -72,6 +72,7 @@ class TaskController extends Controller
             'location' => $loc = TaskPresenter::location($location),
             'customFields' => CustomFields::forLocation($loc)->map->toUi()->values(),
             'canManageFields' => CustomFields::canManage($user, $loc['type'] ?? 'all', $loc['id'] ?? null),
+            'templates' => \App\Models\TaskTemplate::orderBy('name')->get(['id', 'name', 'type', 'created_by']),
             'tasks' => $tasks,
             'statuses' => TaskPresenter::statusesFor($listIds),
             'filters' => $filters,
@@ -194,6 +195,7 @@ class TaskController extends Controller
             'comments' => Comments::payload($task, $user),
             'dependencies' => \App\Services\Tasks\Dependencies::payload($task),
             'customFields' => CustomFields::forTask($task)->map->toUi()->values(),
+            'templates' => \App\Models\TaskTemplate::where('type', 'task')->orderBy('name')->get(['id', 'name', 'type', 'created_by']),
             'fieldValues' => (object) (CustomFields::valuesFor(collect([$task]))[$task->id] ?? []),
             'time' => $this->timePayload($task, $user),
             'reminders' => Reminder::where('user_id', $user->id)->where('task_id', $task->id)->whereNull('done_at')->orderBy('remind_at')->get()

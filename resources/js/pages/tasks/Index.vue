@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
-    Plus, Pencil, Trash2, Palette, ListPlus, Settings2, Shapes, List, Columns3, CalendarDays, Table2, Bookmark, BookmarkPlus, Download, Users2, Lock, SlidersHorizontal, Check, ChartGantt,
+    Plus, Pencil, Trash2, Palette, ListPlus, Settings2, Shapes, List, Columns3, CalendarDays, Table2, Bookmark, BookmarkPlus, Download, Users2, Lock, SlidersHorizontal, Check, ChartGantt, LayoutTemplate, Zap,
 } from '@lucide/vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Btn from '@/components/Btn.vue';
@@ -20,13 +20,14 @@ import NewTaskModal from '@/components/tasks/NewTaskModal.vue';
 import SaveViewModal from '@/components/tasks/SaveViewModal.vue';
 import FieldsManager from '@/components/tasks/FieldsManager.vue';
 import TaskGanttView from '@/components/tasks/TaskGanttView.vue';
+import TemplatesModal from '@/components/tasks/TemplatesModal.vue';
 import { groupLabels, sortLabels, columnLabels } from '@/lib/tasks';
 
 const props = defineProps({
     tree: Array, location: Object, tasks: Array, statuses: Array, filters: Object, priorities: Object, groups: Object,
     users: Array, tags: Array, can: Object, schemeTemplates: Array, milestones: { type: Array, default: () => [] },
     view: Object, savedView: Object, savedViews: Array, columns: Array, lists: Array,
-    types: { type: Array, default: () => [] }, customFields: { type: Array, default: () => [] }, canManageFields: Boolean,
+    types: { type: Array, default: () => [] }, customFields: { type: Array, default: () => [] }, canManageFields: Boolean, templates: { type: Array, default: () => [] },
 });
 const page = usePage();
 const errors = computed(() => Object.values(page.props.errors ?? {}));
@@ -92,6 +93,13 @@ const newListClient = computed(() => (loc.value?.type === 'client' ? loc.value.i
 const newListProject = computed(() => (loc.value?.type === 'project' ? loc.value.id : null));
 const top = computed(() => props.tasks.filter((t) => !t.parent_id).length);
 const listId = computed(() => (loc.value?.type === 'list' ? loc.value.id : null));
+const tplOpen = ref(false);
+const tplMode = ref('apply');
+const tplSource = computed(() => (loc.value && loc.value.type !== 'client' ? { from: loc.value.type, id: loc.value.id, name: loc.value.name } : null));
+const tplTarget = computed(() => (loc.value?.type === 'list' ? { list_id: loc.value.id } : loc.value?.type === 'project' ? { project_id: loc.value.id } : loc.value?.type === 'client' ? { client_id: loc.value.id } : {}));
+const tplKinds = computed(() => (loc.value?.type === 'list' ? ['task'] : loc.value?.type === 'project' ? ['list', 'project'] : ['list']));
+const openTpl = (mode) => { tplMode.value = mode; tplOpen.value = true; };
+const automationsUrl = computed(() => `/tasks/automations${loc.value ? `?${loc.value.type}=${loc.value.id}` : ''}`);
 const menuItem = 'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50';
 </script>
 
@@ -129,6 +137,14 @@ const menuItem = 'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm 
                             </template>
                         </Dropdown>
                         <Btn v-if="canManageFields && loc?.type !== 'list'" variant="secondary" title="الحقول المخصصة" @click="fieldsManager = true"><Shapes class="size-4" /></Btn>
+                        <Dropdown width="w-56">
+                            <template #trigger><Btn variant="secondary" title="القوالب والأتمتة"><LayoutTemplate class="size-4" /></Btn></template>
+                            <template #default="{ close }">
+                                <button v-if="can.create || can.new_list" type="button" :class="menuItem" @click="openTpl('apply'); close()"><LayoutTemplate class="size-4" /> إنشاء من قالب</button>
+                                <button v-if="tplSource" type="button" :class="menuItem" @click="openTpl('save'); close()"><BookmarkPlus class="size-4" /> حفظ {{ loc.type === 'list' ? 'القائمة' : 'قوائم المشروع' }} كقالب</button>
+                                <Link v-if="canManageFields" :href="automationsUrl" :class="menuItem"><Zap class="size-4" /> الأتمتة</Link>
+                            </template>
+                        </Dropdown>
                         <Btn v-if="can.create" @click="newTask = true"><Plus class="size-4" /> مهمة</Btn>
                     </div>
                 </div>
@@ -207,6 +223,7 @@ const menuItem = 'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm 
         <ListFormModal v-model="listForm" :list="editList" :client-id="newListClient" :project-id="newListProject" :milestones="milestones" :templates="schemeTemplates" />
         <NewTaskModal v-model="newTask" :tree="tree" :location="location" />
         <FieldsManager v-if="canManageFields" v-model="fieldsManager" :fields="customFields" :types="types" :location="location" />
+        <TemplatesModal v-model="tplOpen" :mode="tplMode" :source="tplSource" :target="tplTarget" :templates="templates" :kinds="tplKinds" />
         <SaveViewModal v-model="saveView" :location="location" :view="view" :filters="filters" />
     </AppLayout>
 </template>

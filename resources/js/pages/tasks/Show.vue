@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
-    Repeat, Eye, EyeOff, Trash2, FolderInput, ListPlus, X, GitBranch, CalendarDays, Clock, Flag, Users, Tag as TagIcon, Milestone, CircleDot, History, Plus,
+    Repeat, Eye, EyeOff, Trash2, FolderInput, ListPlus, X, GitBranch, CalendarDays, Clock, Flag, Users, Tag as TagIcon, Milestone, CircleDot, History, Plus, LayoutTemplate,
 } from '@lucide/vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Btn from '@/components/Btn.vue';
@@ -25,6 +25,7 @@ import FieldValue from '@/components/tasks/FieldValue.vue';
 import TypeIcon from '@/components/tasks/TypeIcon.vue';
 import TaskDependencies from '@/components/tasks/TaskDependencies.vue';
 import RecurrencePicker from '@/components/tasks/RecurrencePicker.vue';
+import TemplatesModal from '@/components/tasks/TemplatesModal.vue';
 import { typeIcons } from '@/lib/tasks';
 import ReminderButton from '@/components/tasks/ReminderButton.vue';
 import { formatDateTime } from '@/lib/format';
@@ -33,9 +34,12 @@ import { patchTask, dateParams, minutesLabel, parseMinutes, keep } from '@/lib/t
 const props = defineProps({
     task: Object, dependencies: { type: Object, default: () => ({ waiting_on: [], blocking: [], links: [] }) }, comments: Array, files: Object, time: Object, reminders: { type: Array, default: () => [] }, activity: Array, statuses: Array, milestones: Array, moveLists: Array, linkLists: Array,
     priorities: Object, groups: Object, users: Array, tags: Array, can: Object,
-    types: { type: Array, default: () => [] }, customFields: { type: Array, default: () => [] }, fieldValues: { type: Object, default: () => ({}) },
+    types: { type: Array, default: () => [] }, customFields: { type: Array, default: () => [] }, fieldValues: { type: Object, default: () => ({}) }, templates: { type: Array, default: () => [] },
 });
 const page = usePage();
+const tplOpen = ref(false);
+const tplMode = ref('save');
+const openTpl = (m) => { tplMode.value = m; tplOpen.value = true; };
 const t = computed(() => props.task);
 const errors = computed(() => Object.values(page.props.errors ?? {}));
 const set = (data) => patchTask(t.value.id, data);
@@ -125,6 +129,13 @@ const childCan = computed(() => ({ ...props.can, create: props.can.create && t.v
                         <button v-for="l in linkable" :key="l.id" type="button" class="block w-full truncate rounded-lg px-2 py-1.5 text-start text-sm hover:bg-slate-50" @click="link(l); close()">
                             {{ l.name }} <span class="text-xs text-slate-400">· {{ l.client }}<template v-if="l.project"> ← {{ l.project }}</template></span>
                         </button>
+                    </template>
+                </Dropdown>
+                <Dropdown width="w-52">
+                    <template #trigger><Btn variant="secondary" size="sm" title="القوالب"><LayoutTemplate class="size-4" /></Btn></template>
+                    <template #default="{ close }">
+                        <button type="button" class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50" @click="openTpl('save'); close()"><LayoutTemplate class="size-4" /> حفظ كقالب</button>
+                        <button v-if="can.create" type="button" class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50" @click="openTpl('apply'); close()"><Plus class="size-4" /> مهمة فرعية من قالب</button>
                     </template>
                 </Dropdown>
                 <Btn v-if="can.delete" variant="ghost" size="sm" title="أرشفة" @click="archive"><Trash2 class="size-4" /></Btn>
@@ -236,5 +247,6 @@ const childCan = computed(() => ({ ...props.can, create: props.can.create && t.v
                 </div>
             </div>
         </div>
+        <TemplatesModal v-model="tplOpen" :mode="tplMode" :source="{ from: 'task', id: t.id, name: t.title }" :target="{ parent_id: t.id }" :templates="templates" :kinds="['task']" />
     </AppLayout>
 </template>
