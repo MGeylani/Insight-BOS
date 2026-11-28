@@ -114,3 +114,10 @@ Artisan::command('finance:overdue', function () {
 })->purpose('Remind owners of overdue invoices');
 
 \Illuminate\Support\Facades\Schedule::command('finance:overdue')->dailyAt('09:10')->withoutOverlapping();
+
+// Finance: budget alerts for running budgets (labor lines and anything missed), daily.
+Artisan::command('finance:budgets', function () {
+    $this->info('Sent '.\App\Services\Finance\Budgets::checkAll().' budget alert(s).');
+})->purpose('Warn budget owners about lines near or over plan');
+
+\Illuminate\Support\Facades\Schedule::command('finance:budgets')->dailyAt('07:40')->withoutOverlapping();

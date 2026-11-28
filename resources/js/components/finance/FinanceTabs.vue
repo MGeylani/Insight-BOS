@@ -1,10 +1,10 @@
 <script setup>
 import { computed } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
-import { FileText, HandCoins, Clock4, Landmark, ReceiptText, Truck, Wallet2, Undo2 } from '@lucide/vue';
+import { FileText, HandCoins, Clock4, Landmark, ReceiptText, Truck, Wallet2, Undo2, PiggyBank } from '@lucide/vue';
 import { useAuth } from '@/lib/auth';
 
-// Grows with phase 4: budgets and reports come next.
+// Grows with phase 4: reports come next.
 const page = usePage();
 const { perms, can } = useAuth();
 const all = (perm) => Boolean(perms.value['*']) || perms.value[perm] === 'all';
@@ -15,6 +15,7 @@ const tabs = computed(() => [
     (can('finance.expense') || can('finance.view') || can('finance.approve')) && { label: 'المصروفات', href: '/finance/expenses', icon: ReceiptText },
     can('finance.view') && { label: 'الموردون', href: '/finance/vendors', icon: Truck },
     (can('finance.expense') || can('finance.view')) && { label: 'السلف والعهد', href: '/finance/advances', icon: Wallet2 },
+    (can('finance.view') || can('projects.manage_budget')) && { label: 'الميزانيات', href: '/finance/budgets', icon: PiggyBank },
     all('finance.view') && { label: 'التعويضات', href: '/finance/reimbursements', icon: Undo2 },
     all('finance.view') && { label: 'الصناديق والحسابات', href: '/finance/accounts', icon: Landmark },
 ].filter(Boolean));

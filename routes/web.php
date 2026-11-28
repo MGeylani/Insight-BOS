@@ -53,6 +53,7 @@ use App\Http\Controllers\Finance\ExpenseCategoryController;
 use App\Http\Controllers\Finance\VendorController;
 use App\Http\Controllers\Finance\AdvanceController;
 use App\Http\Controllers\Finance\ReimbursementController;
+use App\Http\Controllers\Finance\BudgetController;
 use Illuminate\Support\Facades\Route;
 
 // Intake forms: public ones open without signing in; internal ones send guests to the login page.
@@ -250,6 +251,17 @@ Route::middleware('auth')->group(function () {
         Route::get('reimbursements', [ReimbursementController::class, 'index'])->name('reimbursements.index');
         Route::post('reimbursements', [ReimbursementController::class, 'store'])->name('reimbursements.store');
         Route::post('reimbursements/{reimbursement}/reverse', [ReimbursementController::class, 'reverse'])->name('reimbursements.reverse');
+        // Budgets: finance or project budget managers (checked in the controller).
+        Route::get('budgets', [BudgetController::class, 'index'])->name('budgets.index');
+        Route::get('budgets/create', [BudgetController::class, 'create'])->name('budgets.create');
+        Route::post('budgets', [BudgetController::class, 'store'])->name('budgets.store');
+        Route::get('budgets/{budget}', [BudgetController::class, 'show'])->whereNumber('budget')->name('budgets.show');
+        Route::get('budgets/{budget}/edit', [BudgetController::class, 'edit'])->name('budgets.edit');
+        Route::put('budgets/{budget}', [BudgetController::class, 'update'])->name('budgets.update');
+        Route::delete('budgets/{budget}', [BudgetController::class, 'destroy'])->name('budgets.destroy');
+        Route::post('cost-centers', [BudgetController::class, 'storeCenter'])->name('cost-centers.store');
+        Route::put('cost-centers/{center}', [BudgetController::class, 'updateCenter'])->name('cost-centers.update');
+        Route::delete('cost-centers/{center}', [BudgetController::class, 'destroyCenter'])->name('cost-centers.destroy');
         Route::post('vendors/{vendor}/pay', [VendorController::class, 'pay'])->name('vendors.pay');
         Route::post('vendor-payments/{payment}/allocate', [VendorController::class, 'allocate'])->name('vendor-payments.allocate');
         Route::post('vendor-payments/{payment}/reverse', [VendorController::class, 'reversePayment'])->name('vendor-payments.reverse');

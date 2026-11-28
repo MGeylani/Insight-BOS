@@ -35,10 +35,10 @@ class ExpenseController extends Controller
     {
         $user = $request->user();
         abort_unless(self::allowed($user), 403);
-        $f = $request->only('search', 'status', 'category', 'project', 'user', 'paid_by', 'vendor', 'from', 'to', 'mine', 'decide');
+        $f = $request->only('search', 'status', 'category', 'project', 'cost_center', 'user', 'paid_by', 'vendor', 'from', 'to', 'mine', 'decide');
         $base = Expense::query()->visibleTo($user);
 
-        $q = self::filtered(clone $base, $f, $user)->with(['category:id,name,kind', 'user:id,name', 'vendor:id,name', 'project:id,name,number'])->withPaid();
+        $q = self::filtered(clone $base, $f, $user)->with(['costCenter:id,name', 'category:id,name,kind', 'user:id,name', 'vendor:id,name', 'project:id,name,number'])->withPaid();
         $month = (clone $base)->approved()->whereDate('date', '>=', now()->startOfMonth())->get(['amount', 'fx_rate']);
         $all = $user->permissionScope('finance.view') === 'all';
 
@@ -78,6 +78,7 @@ class ExpenseController extends Controller
             })
             ->when($f['category'] ?? null, fn ($q, $v) => $q->where('category_id', $v))
             ->when($f['project'] ?? null, fn ($q, $v) => $q->where('project_id', $v))
+            ->when($f['cost_center'] ?? null, fn ($q, $v) => $q->where('cost_center_id', $v))
             ->when($f['user'] ?? null, fn ($q, $v) => $q->where('user_id', $v))
             ->when($f['paid_by'] ?? null, fn ($q, $v) => $q->where('paid_by', $v))
             ->when($f['vendor'] ?? null, fn ($q, $v) => $q->where('vendor_id', $v))
@@ -122,7 +123,7 @@ class ExpenseController extends Controller
 
         return Inertia::render('finance/expenses/Form', [
             'expense' => [
-                ...$e->only('id', 'number', 'description', 'currency', 'paid_by', 'account_id', 'advance_id', 'vendor_id', 'vendor_ref', 'project_id', 'user_id', 'category_id', 'notes'),
+                ...$e->only('id', 'number', 'description', 'currency', 'paid_by', 'account_id', 'advance_id', 'vendor_id', 'vendor_ref', 'project_id', 'cost_center_id', 'user_id', 'category_id', 'notes'),
                 'amount' => $e->amount !== null ? (float) $e->amount : '',
                 'date' => $e->date?->toDateString(), 'due_date' => $e->due_date?->toDateString(),
             ],
@@ -132,6 +133,7 @@ class ExpenseController extends Controller
             'vendors' => Payables::vendorOptions(),
             'projects' => Project::whereIn('status', ['planning', 'active', 'on_hold'])->orWhere('id', $e->project_id)->orderByDesc('id')->get(['id', 'number', 'name']),
             'people' => $others ? Payables::people() : [],
+            'costCenters' => \App\Models\CostCenter::where('is_active', true)->orWhere('id', $e->cost_center_id)->orderBy('name')->get(['id', 'name']),
             'currencies' => Currency::where('is_active', true)->orderByDesc('is_base')->pluck('code'),
             'paidBy' => config('finance.paid_by'),
             'canVendor' => $user->hasPermission('finance.expense') || $user->hasPermission('finance.create'),
@@ -158,7 +160,7 @@ class ExpenseController extends Controller
     {
         $user = $request->user();
         abort_unless(self::allowed($user) && $expense->isVisibleTo($user), 403);
-        $expense->load(['category:id,name,kind', 'user:id,name', 'creator:id,name', 'decider:id,name', 'vendor:id,name', 'project:id,name,number',
+        $expense->load(['costCenter:id,name', 'category:id,name,kind', 'user:id,name', 'creator:id,name', 'decider:id,name', 'vendor:id,name', 'project:id,name,number',
             'account:id,name,currency', 'advance:id,number', 'reimbursement.account:id,name', 'allocations.payment:id,number,date,currency,status']);
         $log = ActivityLog::with('user:id,name')->where('subject_type', 'expense')->where('subject_id', $expense->id)->latest('id')->limit(30)->get();
 
@@ -234,6 +236,7 @@ class ExpenseController extends Controller
             'vendor_ref' => ['nullable', 'string', 'max:80'],
             'due_date' => ['nullable', 'date'],
             'project_id' => ['nullable', 'exists:projects,id'],
+            'cost_center_id' => ['nullable', 'exists:cost_centers,id'],
             'user_id' => ['nullable', 'exists:users,id'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ], [], ['category_id' => 'التصنيف', 'description' => 'البيان', 'amount' => 'المبلغ']);
@@ -254,6 +257,7 @@ class ExpenseController extends Controller
             'user' => $e->user?->only('id', 'name'),
             'vendor' => $e->vendor?->only('id', 'name'),
             'project' => $e->project?->only('id', 'name', 'number'),
+            'cost_center' => $e->costCenter?->only('id', 'name'),
         ];
     }
 }
