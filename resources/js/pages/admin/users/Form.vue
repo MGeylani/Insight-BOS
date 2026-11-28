@@ -8,7 +8,7 @@ import Field from '@/components/Field.vue';
 import Toggle from '@/components/Toggle.vue';
 import PermissionMatrix from '@/components/PermissionMatrix.vue';
 
-const props = defineProps({ user: Object, catalog: Array, scopes: Object, templates: Array });
+const props = defineProps({ user: Object, catalog: Array, scopes: Object, templates: Array, canCost: Boolean });
 const editing = computed(() => !!props.user);
 
 const form = useForm({
@@ -19,6 +19,7 @@ const form = useForm({
     password_confirmation: '',
     is_active: props.user?.is_active ?? true,
     role_template_id: props.user?.role_template_id ?? null,
+    hourly_cost: props.user?.hourly_cost ?? null,
     permissions: { ...(props.user?.permissions ?? {}) },
 });
 
@@ -52,6 +53,9 @@ const submit = () => {
                 <Field label="الاسم الكامل" id="name" :error="form.errors.name" required><input id="name" v-model="form.name" class="field-input" required /></Field>
                 <Field label="البريد الإلكتروني (اسم الدخول)" id="email" :error="form.errors.email" required><input id="email" v-model="form.email" type="email" dir="ltr" class="field-input text-start" required /></Field>
                 <Field label="الهاتف" id="phone" :error="form.errors.phone"><input id="phone" v-model="form.phone" dir="ltr" class="field-input text-start" /></Field>
+                <Field v-if="canCost" label="تكلفة الساعة (USD)" id="hourly_cost" :error="form.errors.hourly_cost" hint="داخلية: تُحسب بها تكلفة المشاريع من الساعات المسجلة. لا يراها إلا من يملك صلاحية عرض الرواتب.">
+                    <input id="hourly_cost" v-model="form.hourly_cost" type="number" min="0" step="0.01" dir="ltr" class="field-input text-start" />
+                </Field>
                 <div class="flex items-end pb-2">
                     <Toggle v-model="form.is_active" label="الحساب نشط" :disabled="user?.is_super_admin" />
                 </div>

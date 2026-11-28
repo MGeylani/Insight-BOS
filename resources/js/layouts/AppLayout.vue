@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { LogOut, Menu, X, UserCog, TriangleAlert, CircleCheck } from '@lucide/vue';
 import NotificationBell from '@/components/NotificationBell.vue';
+import TimerPill from '@/components/TimerPill.vue';
 import { navigation } from '@/lib/navigation';
 import { useAuth } from '@/lib/auth';
 import { initials } from '@/lib/format';
@@ -62,6 +63,7 @@ const logout = () => router.post('/logout');
                             >
                                 <component :is="item.icon" class="size-[18px] shrink-0" />
                                 {{ item.label }}
+                                <span v-if="item.badge && page.props[item.badge]" class="num ms-auto rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{{ page.props[item.badge] > 99 ? '99+' : page.props[item.badge] }}</span>
                             </Link>
                             <span v-else class="flex cursor-default items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/40">
                                 <component :is="item.icon" class="size-[18px] shrink-0" />
@@ -81,7 +83,8 @@ const logout = () => router.post('/logout');
             <header class="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-slate-200/70 bg-white/85 px-4 backdrop-blur sm:px-8">
                 <button class="rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden" @click="mobileOpen = true"><Menu class="size-5" /></button>
                 <img src="/images/logo.svg" alt="Insight Media" class="h-7 lg:hidden" />
-                <NotificationBell class="ms-auto" />
+                <TimerPill class="ms-auto" />
+                <NotificationBell :class="page.props.timer ? '' : 'ms-auto'" />
                 <div class="relative">
                     <button class="flex items-center gap-3 rounded-xl py-1.5 ps-1.5 pe-3 hover:bg-slate-100" @click="menuOpen = !menuOpen">
                         <span class="flex size-9 items-center justify-center rounded-full bg-navy text-sm font-semibold text-white">{{ initials(user?.name) }}</span>

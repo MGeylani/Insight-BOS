@@ -16,9 +16,9 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, SoftDeletes;
 
-    protected $fillable = ['name', 'email', 'password', 'phone', 'is_active', 'role_template_id'];
+    protected $fillable = ['name', 'email', 'password', 'phone', 'is_active', 'role_template_id', 'hourly_cost'];
 
-    protected $hidden = ['password', 'remember_token'];
+    protected $hidden = ['password', 'remember_token', 'hourly_cost'];
 
     /** @var array<string, string>|null */
     private ?array $permissionCache = null;
@@ -31,6 +31,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_active' => 'boolean',
             'is_super_admin' => 'boolean',
+            'hourly_cost' => 'decimal:2',
         ];
     }
 

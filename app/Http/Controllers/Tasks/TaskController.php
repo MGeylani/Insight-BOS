@@ -14,6 +14,9 @@ use App\Models\User;
 use App\Services\Storage\Attachments;
 use App\Services\Tasks\Comments;
 use App\Services\Tasks\BulkActions;
+use App\Services\Tasks\TimeTracking;
+use App\Models\TimeEntry;
+use App\Models\Reminder;
 use App\Services\Tasks\TaskLists;
 use App\Services\Tasks\ViewConfig;
 use App\Models\SavedView;
@@ -181,6 +184,9 @@ class TaskController extends Controller
                 ])->values(),
             ],
             'comments' => Comments::payload($task, $user),
+            'time' => $this->timePayload($task, $user),
+            'reminders' => Reminder::where('user_id', $user->id)->where('task_id', $task->id)->whereNull('done_at')->orderBy('remind_at')->get()
+                ->map(fn ($r) => ['id' => $r->id, 'remind_at' => $r->remind_at->format('Y-m-d\TH:i'), 'note' => $r->note, 'sent' => $r->sent_at !== null]),
             'files' => Attachments::payload($task, $user),
             'activity' => ActivityLog::with('user:id,name')->where('subject_type', 'task')->where('subject_id', $task->id)
                 ->latest('id')->limit(100)->get()
@@ -196,8 +202,27 @@ class TaskController extends Controller
                 'assign' => $task->isVisibleTo($user, 'tasks.assign'),
                 'delete' => $task->isVisibleTo($user, 'tasks.delete'),
                 'create' => $user->hasPermission('tasks.create'),
+                'track' => $user->hasPermission('tasks.track_time'),
             ],
         ]);
+    }
+
+    /** Time on this task: everyone's total, and the entries the user may see (own, or all with track_time = all). */
+    private function timePayload(Task $task, User $user): array
+    {
+        $all = $user->permissionScope('tasks.track_time') === 'all';
+        $entries = TimeEntry::with('user:id,name')->where('task_id', $task->id)->when(! $all, fn ($q) => $q->where('user_id', $user->id))
+            ->latest('started_at')->limit(50)->get();
+
+        return [
+            'total' => TimeTracking::totals(TimeEntry::where('task_id', $task->id))['minutes'],
+            'mine' => TimeTracking::totals(TimeEntry::where('task_id', $task->id)->where('user_id', $user->id))['minutes'],
+            'entries' => $entries->map(fn (TimeEntry $e) => [
+                'id' => $e->id, 'user' => $e->user?->name, 'date' => $e->started_at->toDateString(), 'from' => $e->started_at->format('H:i'),
+                'minutes' => $e->liveMinutes(), 'running' => $e->ended_at === null, 'billable' => $e->billable, 'note' => $e->note,
+                'can_edit' => $all || (int) $e->user_id === $user->id,
+            ])->values(),
+        ];
     }
 
     public function store(Request $request): RedirectResponse

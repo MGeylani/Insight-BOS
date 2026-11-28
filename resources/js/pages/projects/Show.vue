@@ -16,6 +16,7 @@ import AttachmentsPanel from '@/components/AttachmentsPanel.vue';
 import { formatDate, formatDateTime } from '@/lib/format';
 import { money, usd } from '@/lib/crm';
 import { projectStatusTone, daysLabel, riskLevelTone } from '@/lib/projects';
+import { minutesLabel } from '@/lib/tasks';
 
 const props = defineProps({
     project: Object, milestones: Array, taskLists: { type: Array, default: null }, risks: Array, issues: Array, changes: Array, log: Array, can: Object, files: Object,
@@ -101,6 +102,11 @@ const destroy = () => confirm(`أرشفة المشروع ${p.value.name}؟`) && 
                                     <div><dt class="text-xs text-slate-500">منها تغييرات معتمدة</dt><dd class="num mt-0.5">{{ p.approved_cost ? money(p.approved_cost, p.currency) : '—' }}</dd></div>
                                 </template>
                                 <div><dt class="text-xs text-slate-500">تمديد معتمد</dt><dd class="mt-0.5">{{ daysLabel(p.approved_days) }}</dd></div>
+                                <div v-if="p.time"><dt class="text-xs text-slate-500">الساعات المسجلة</dt><dd class="num mt-0.5 font-bold text-navy">{{ minutesLabel(p.time.minutes) || '—' }}</dd>
+                                    <dd v-if="p.time.minutes" class="num text-xs text-slate-500">قابلة للفوترة {{ minutesLabel(p.time.billable_minutes) || '0د' }}</dd></div>
+                                <div v-if="p.time && can.see_budget"><dt class="text-xs text-slate-500">تكلفة الساعات</dt><dd class="num mt-0.5 font-bold text-plum">{{ usd(p.time.cost) }}</dd>
+                                    <dd v-if="p.time.uncosted_minutes" class="text-[11px] text-amber-700">{{ minutesLabel(p.time.uncosted_minutes) }} بلا تكلفة ساعة</dd>
+                                    <dd v-else-if="p.budget_usd" class="num text-xs text-slate-500">{{ Math.round((p.time.cost / p.budget_usd) * 100) }}% من الميزانية</dd></div>
                             </dl>
                             <div v-if="p.progress !== null" class="mt-5 h-2 overflow-hidden rounded-full bg-slate-100"><div class="brand-gradient h-full rounded-full" :style="{ width: p.progress + '%' }" /></div>
                             <div v-if="p.description" class="mt-5 text-sm"><p class="mb-1 font-semibold text-navy">الوصف ونطاق العمل</p><p class="whitespace-pre-line leading-relaxed text-slate-700">{{ p.description }}</p></div>
