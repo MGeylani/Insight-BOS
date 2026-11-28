@@ -72,7 +72,7 @@ Artisan::command('tasks:digest', function () {
         if (! $today && ! $late && ! $comments) {
             continue;
         }
-        $already = $user->notifications()->where('created_at', '>=', today())->where('data', 'like', '%"kind":"task.digest"%')->exists();
+        $already = $user->notifications()->where('created_at', '>=', today())->where('data->kind', 'task.digest')->exists();
         if ($already) {
             continue;
         }

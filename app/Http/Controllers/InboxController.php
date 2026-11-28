@@ -15,7 +15,7 @@ class InboxController extends Controller
         $unread = $request->boolean('unread');
         $items = $request->user()->notifications()
             ->when($unread, fn ($q) => $q->whereNull('read_at'))
-            ->when($request->input('kind'), fn ($q, $k) => $q->where('data', 'like', '%"kind":"'.str_replace(['%', '_', '"'], '', $k).'%'))
+            ->when($request->input('kind'), fn ($q, $k) => $q->where('data->kind', (string) $k))
             ->paginate(30)->withQueryString();
 
         return Inertia::render('tasks/Inbox', [
